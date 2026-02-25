@@ -392,20 +392,19 @@ app.post('/api/student/login', (req, res) => {
     return res.json({ success: false, error: `Only @${ALLOWED_EMAIL_DOMAIN} emails are allowed.` });
   }
 
-  // Enforcement: 1 Email = 1 Phone (Email already registered to another phone)
-  const existingEmailDevice = db.devices.find(d => d.email === emailLower);
-  if (existingEmailDevice) {
-    if (existingEmailDevice.deviceId !== deviceId) {
-      return res.json({ success: false, error: 'This email is already registered strictly to another phone.' });
+  // Enforcement: 1 Phone = 1 Email (Phone already registered to a different email)
+  const existingPhoneUser = db.devices.find(d => d.deviceId === deviceId);
+  if (existingPhoneUser) {
+    if (existingPhoneUser.email !== emailLower) {
+      return res.json({ success: false, error: `This phone is already bound to ${existingPhoneUser.email}. Using multiple emails on one phone is NOT allowed.` });
     }
+    // Phone exists and matches the same email -> Welcome back!
     return res.json({ success: true, message: 'Welcome back!' });
   }
 
-  // Enforcement: 1 Phone = 1 Email (Phone already registered to another email)
-  const existingPhoneUser = db.devices.find(d => d.deviceId === deviceId);
-  if (existingPhoneUser) {
-    return res.json({ success: false, error: `This phone is already bound to ${existingPhoneUser.email}. Using multiple emails on one phone is NOT allowed.` });
-  }
+  // If we reach here, this phone is brand new.
+  // The user requested: "an email can have multiple phone ids".
+  // So we don't need to block if the email is already on another phone. We just register this new phone.
 
   // Register new device
   db.devices.push({ email: emailLower, deviceId, registeredAt: new Date().toISOString() });
