@@ -858,15 +858,29 @@ app.listen(PORT, '0.0.0.0', () => {
   connectDB().then(() => {
     // Auto-close sessions exceeding 10 minutes
     setInterval(async () => {
-      const nowMs = Date.now();
-      const expiredSessions = await Session.find({ active: true });
-      for (const s of expiredSessions) {
-        if (nowMs - s.sessionId > 10 * 60 * 1000) {
-          s.active = false;
-          s.stoppedAt = new Date(s.sessionId + 10 * 60 * 1000);
-          await s.save();
+      try {
+        const nowMs = Date.now();
+        const expiredSessions = await Session.find({ active: true });
+        for (const s of expiredSessions) {
+          if (nowMs - s.sessionId > 10 * 60 * 1000) {
+            s.active = false;
+            s.stoppedAt = new Date(s.sessionId + 10 * 60 * 1000);
+            await s.save();
+          }
         }
+      } catch (e) {
+        console.error('Auto-close interval error:', e.message);
       }
     }, 10000);
   });
+});
+
+// ==========================================
+// GLOBAL CRASH GUARDS
+// ==========================================
+process.on('uncaughtException', (err) => {
+  console.error('  ❌  Uncaught Exception (server kept alive):', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('  ❌  Unhandled Rejection (server kept alive):', reason);
 });
