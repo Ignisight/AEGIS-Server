@@ -75,23 +75,38 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
 }
 
 // ==========================================
-// MONGOOSE CONNECTION
+// MONGOOSE CONNECTION (with retry)
 // ==========================================
 const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {
-  console.error('❌  MONGO_URI environment variable is not set. Server cannot start without a database.');
+  console.error('❌  MONGO_URI environment variable is not set.');
   process.exit(1);
 }
 
-mongoose.connect(MONGO_URI, {
-  serverSelectionTimeoutMS: 10000,
-}).then(() => {
-  console.log('  ✅  MongoDB Atlas connected.');
-}).catch(err => {
-  console.error('  ❌  MongoDB connection error:', err.message);
-  process.exit(1);
-});
+async function connectDB() {
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await mongoose.connect(MONGO_URI, {
+        serverSelectionTimeoutMS: 30000,
+        connectTimeoutMS: 30000,
+      });
+      console.log('  ✅  MongoDB Atlas connected.');
+      return;
+    } catch (err) {
+      console.error(`  ❌  MongoDB connect attempt ${attempt}/5 failed: ${err.message}`);
+      if (attempt < 5) {
+        console.log('  ⏳  Retrying in 5 seconds...');
+        await new Promise(r => setTimeout(r, 5000));
+      } else {
+        console.error('  ❌  All MongoDB connection attempts failed. Exiting.');
+        process.exit(1);
+      }
+    }
+  }
+}
+
+connectDB();
 
 // ==========================================
 // MONGOOSE SCHEMAS & MODELS
