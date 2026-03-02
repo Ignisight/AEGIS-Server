@@ -42,6 +42,7 @@ async function sendEmail(to, subject, html) {
     });
     const data = await res.json();
     if (res.ok) return { success: true };
+    if (res.status === 429) return { success: false, error: 'Daily email limit reached. Please try again tomorrow.' };
     console.error('Resend API error:', data);
     return { success: false, error: data.message || 'Email send failed.' };
   } catch (err) {
