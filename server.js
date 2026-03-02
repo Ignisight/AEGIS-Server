@@ -25,16 +25,30 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 const ALLOWED_EMAIL_DOMAIN = 'nitjsr.ac.in';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '188263362905-05e73in41h1ib970spt6q3meoidg2fte.apps.googleusercontent.com';
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const EMAIL_FROM = process.env.EMAIL_FROM || 'Attendance System <onboarding@resend.dev>';
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,             // use STARTTLS (not SSL) — works on Render free tier
-  family: 4,                 // force IPv4 — Render's IPv6 is unreachable for Gmail
-  auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-});
+// Send email via Resend HTTP API (works on Render free tier — no SMTP needed)
+async function sendEmail(to, subject, html) {
+  if (!RESEND_API_KEY) {
+    console.log('  ⚠️  RESEND_API_KEY not configured. Email not sent.');
+    return { success: false, error: 'Email service not configured. Contact Admin.' };
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+    });
+    const data = await res.json();
+    if (res.ok) return { success: true };
+    console.error('Resend API error:', data);
+    return { success: false, error: data.message || 'Email send failed.' };
+  } catch (err) {
+    console.error('Email send error:', err.message);
+    return { success: false, error: 'Email service unreachable.' };
+  }
+}
 
 function generateSessionCode() {
   return crypto.randomBytes(4).toString('hex');
@@ -311,33 +325,21 @@ app.post('/api/forgot-password', async (req, res) => {
     { upsert: true, new: true }
   );
 
-  // ── SEND OTP via email ONLY — never log or expose ──
-  if (!EMAIL_USER || !EMAIL_PASS) {
-    console.log('  ⚠️  Email not configured. OTP generated but NOT exposed.');
-    return res.json({ success: false, error: 'Email service not configured on server. Contact Admin.' });
+  // ── SEND OTP via Resend HTTP API — never log or expose ──
+  const emailHtml = `<div style="font-family:sans-serif;padding:20px;background:#0f172a;color:#f1f5f9;border-radius:12px;">
+    <h2 style="color:#818cf8;">Password Reset Request</h2>
+    <p>Your one-time verification code is:</p>
+    <h1 style="color:#6366f1;letter-spacing:8px;font-size:36px;background:#1e293b;display:inline-block;padding:12px 24px;border-radius:12px;">${otp}</h1>
+    <p style="margin-top:16px;">This code expires in <strong>10 minutes</strong>.</p>
+    <p style="color:#94a3b8;font-size:12px;margin-top:20px;">If you did not request this, ignore this email. Do NOT share this code with anyone.</p>
+  </div>`;
+
+  const emailResult = await sendEmail(emailLower, 'Password Reset OTP - Attendance App', emailHtml);
+  if (!emailResult.success) {
+    return res.json({ success: false, error: emailResult.error });
   }
-
-  const mailOptions = {
-    from: `"Attendance System" <${EMAIL_USER}>`,
-    to: emailLower,
-    subject: 'Password Reset OTP - Attendance App',
-    html: `<div style="font-family:sans-serif;padding:20px;background:#0f172a;color:#f1f5f9;border-radius:12px;">
-             <h2 style="color:#818cf8;">Password Reset Request</h2>
-             <p>Your one-time verification code is:</p>
-             <h1 style="color:#6366f1;letter-spacing:8px;font-size:36px;background:#1e293b;display:inline-block;padding:12px 24px;border-radius:12px;">${otp}</h1>
-             <p style="margin-top:16px;">This code expires in <strong>10 minutes</strong>.</p>
-             <p style="color:#94a3b8;font-size:12px;margin-top:20px;">If you did not request this, ignore this email. Do NOT share this code with anyone.</p>
-           </div>`,
-  };
-
-  transporter.sendMail(mailOptions, (error) => {
-    if (error) {
-      console.error('Email send error:', error.message);
-      return res.json({ success: false, error: 'Failed to send OTP email. Try again later.' });
-    }
-    // ── RESPONSE: success message ONLY — no OTP, no hints ──
-    res.json({ success: true, message: `OTP sent to ${emailLower}` });
-  });
+  // ── RESPONSE: success message ONLY — no OTP, no hints ──
+  res.json({ success: true, message: `OTP sent to ${emailLower}` });
 });
 
 app.post('/api/reset-password', async (req, res) => {
