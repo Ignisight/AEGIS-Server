@@ -29,7 +29,10 @@ const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,             // use STARTTLS (not SSL) — works on Render free tier
+  family: 4,                 // force IPv4 — Render's IPv6 is unreachable for Gmail
   auth: { user: EMAIL_USER, pass: EMAIL_PASS },
 });
 
