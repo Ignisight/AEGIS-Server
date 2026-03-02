@@ -181,7 +181,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const APP_SECRET_KEY = process.env.APP_SECRET_KEY || 'attendance-system-v2-secure-key-2026';
+const APP_SECRET_KEY = process.env.APP_SECRET_KEY;
+if (!APP_SECRET_KEY) {
+  console.error('❌  APP_SECRET_KEY environment variable is not set.');
+  process.exit(1);
+}
 
 // App secret check
 app.use((req, res, next) => {
