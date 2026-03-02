@@ -332,13 +332,11 @@ app.post('/api/forgot-password', async (req, res) => {
     { upsert: true, new: true }
   );
 
-  // ── SEND OTP via Resend HTTP API — never log or expose ──
-  const emailHtml = `<div style="font-family:sans-serif;padding:20px;background:#0f172a;color:#f1f5f9;border-radius:12px;">
-    <h2 style="color:#818cf8;">Password Reset Request</h2>
-    <p>Your one-time verification code is:</p>
-    <h1 style="color:#6366f1;letter-spacing:8px;font-size:36px;background:#1e293b;display:inline-block;padding:12px 24px;border-radius:12px;">${otp}</h1>
-    <p style="margin-top:16px;">This code expires in <strong>10 minutes</strong>.</p>
-    <p style="color:#94a3b8;font-size:12px;margin-top:20px;">If you did not request this, ignore this email. Do NOT share this code with anyone.</p>
+  // ── SEND OTP via Brevo HTTP API — never log or expose ──
+  const emailHtml = `<div style="font-family:sans-serif;padding:20px;">
+    <p>Hi <strong>${user.name}</strong>,</p>
+    <p>Your OTP is: <strong style="font-size:24px;letter-spacing:4px;">${otp}</strong></p>
+    <p>It expires in 10 minutes. Do not share this with anyone.</p>
   </div>`;
 
   const emailResult = await sendEmail(emailLower, 'Password Reset OTP - Attendance App', emailHtml);
