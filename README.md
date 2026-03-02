@@ -1,58 +1,137 @@
-# QR Attendance System — Node.js Cloud Server (v2.2.0)
+# 📋 Attendance Server — NIT Jamshedpur
 
-REST API backend for the NIT Jamshedpur QR Attendance System. Handles authentication, sessions, attendance, OTP password reset, and student device binding.
+Backend REST API for the QR Attendance System. Handles teacher authentication, attendance sessions, student device binding, OTP password reset, and data export.
 
-**Live:** [attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com)
+**Live Server:** [attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com)
 
 ### 📥 Download the Mobile App
 👉 [Download Android APK (v2.2.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/0df16407-f7c2-4868-9ba9-b133e152bf0b)
 
 ---
 
-### 🍃 v2.2.0 — MongoDB + Security Upgrade
+## 🧰 Tech Stack
 
-#### Database
-- **MongoDB Atlas** — persistent cloud storage replacing the old in-memory `data.json`.
-- All data survives server restarts and redeployments permanently.
-- TTL indexes auto-cleanup: Sessions (6 months), Attendance (4 years), OTPs (10 minutes).
-
-#### Security
-- **APP_SECRET_KEY** rotated and moved to environment variables — zero secrets in source code.
-- **OTP hashed with bcrypt** — never stored as plaintext in the database.
-- **Cryptographic OTP generation** via `crypto.randomInt()`.
-- **Brute-force protection:** 5 failed OTP attempts → 15-minute lockout.
-- **60-second cooldown** between OTP requests.
-- **Brevo HTTP API** for email delivery (no SMTP — works on Render free tier).
-- Global crash guards prevent uncaught exceptions from killing the server process.
-
-#### API Endpoints
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/register` | POST | Teacher registration |
-| `/api/login` | POST | Teacher login |
-| `/api/forgot-password` | POST | Send OTP email |
-| `/api/reset-password` | POST | Verify OTP & reset password |
-| `/api/change-password` | POST | Change password (logged in) |
-| `/api/update-profile` | POST | Update teacher profile |
-| `/api/start-session` | POST | Start attendance session |
-| `/api/sessions/:id/stop` | POST | Stop active session |
-| `/api/status` | GET | Current session status |
-| `/api/history` | GET | All past sessions |
-| `/api/export` | GET | Download Excel attendance |
-| `/api/student/login` | POST | Student device registration |
-| `/api/scan` | POST | QR code image upload scan |
-
-#### Environment Variables (Render)
-| Variable | Purpose |
+| Technology | Purpose |
 |---|---|
-| `MONGO_URI` | MongoDB Atlas connection string |
-| `APP_SECRET_KEY` | API authentication key |
-| `BREVO_API_KEY` | Brevo email API key |
-| `EMAIL_FROM` | Sender email address |
+| **Node.js** | Runtime environment |
+| **Express.js** | HTTP server & REST API framework |
+| **MongoDB Atlas** | Cloud database (persistent storage) |
+| **Mongoose** | MongoDB ODM for schema modeling & queries |
+| **bcryptjs** | Password & OTP hashing (salted bcrypt) |
+| **Brevo HTTP API** | Transactional email delivery (OTP emails) |
+| **multer** | Multipart file upload handling (QR image scan) |
+| **Jimp** | Server-side image processing (QR decode from photos) |
+| **jsQR** | QR code detection & decoding from image buffers |
+| **xlsx** | Excel file generation for attendance exports |
+| **cors** | Cross-origin resource sharing middleware |
+| **crypto** | Cryptographically secure OTP generation |
+| **Render** | Cloud deployment platform (free tier) |
+| **GitHub Actions** | Keep-alive automation (prevents Render sleep) |
 
-#### Tech Stack
-- Node.js + Express
-- MongoDB Atlas (Mongoose)
-- Brevo HTTP API (emails)
-- bcryptjs (password + OTP hashing)
-- Deployed on Render (free tier)
+---
+
+## 📁 Project Structure
+
+```
+attendance-server/
+├── server.js                          # Entire backend (single file)
+├── package.json                       # Dependencies & start script
+├── .github/workflows/keepalive.yml    # Cron job: pings server every 5 min
+└── README.md
+```
+
+---
+
+## 🔌 API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/register` | Create teacher account (name, email, password) |
+| POST | `/api/login` | Teacher login with email & password |
+| POST | `/api/google-login` | Teacher login via Google OAuth ID token |
+| POST | `/api/change-password` | Change password (requires current password) |
+| POST | `/api/update-profile` | Update teacher name, college, department |
+
+### Password Reset (OTP)
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/forgot-password` | Send 6-digit OTP to teacher's email |
+| POST | `/api/reset-password` | Verify OTP & set new password |
+
+### Attendance Sessions
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/start-session` | Start a new QR attendance session |
+| POST | `/api/sessions/:id/stop` | Stop an active session |
+| GET | `/api/status` | Get current active session status |
+| GET | `/api/history` | Get all past sessions with attendance counts |
+| POST | `/api/sessions/clear-all` | Delete all sessions and attendance data |
+
+### Student
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/student/login` | Register student device (1 phone = 1 email) |
+| POST | `/api/submit` | Submit attendance via QR code data |
+| POST | `/api/scan` | Upload QR code image for server-side decode |
+| GET | `/api/responses/:sessionId` | Get all responses for a session |
+
+### Export
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/export` | Download all attendance as Excel (.xlsx) file |
+
+---
+
+## 🍃 Database Schema (MongoDB Atlas)
+
+| Collection | Fields | TTL |
+|---|---|---|
+| **Teachers** | id, email, name, college, department, password (bcrypt hash) | Permanent |
+| **OTPs** | email, otpHash (bcrypt), expiresAt, failedAttempts, lockedUntil, lastRequestedAt | 10 minutes |
+| **Sessions** | sessionId, name, code, location, radius, active, createdAt, stoppedAt | 6 months |
+| **Attendance** | sessionId, email, name, rollNumber, batchYear, program, branch, location, deviceId | 4 years |
+| **Devices** | email, deviceId (SHA-256 hash) | Permanent |
+
+---
+
+## 🔒 Security Features
+
+- **APP_SECRET_KEY** — All `/api/` requests require `x-app-secret` header. Blocks Postman, curl, scripts.
+- **bcrypt password hashing** — Passwords salted & hashed with bcrypt (10 rounds).
+- **bcrypt OTP hashing** — OTPs hashed before storage, verified via `bcrypt.compare()`.
+- **Cryptographic OTP** — Generated with `crypto.randomInt()` (CSPRNG), not `Math.random()`.
+- **Rate limiting** — 5 failed OTP attempts → 15-minute lockout.
+- **Cooldown** — 60-second wait between OTP requests per email.
+- **Zero OTP exposure** — OTP never in API responses, console logs, or client state.
+- **Device binding** — Student device IDs hashed with SHA-256, enforced as unique.
+- **GPS geofencing** — Attendance only accepted within configured radius of teacher.
+
+---
+
+## ⚙️ Environment Variables (Render)
+
+| Variable | Required | Description |
+|---|---|---|
+| `MONGO_URI` | ✅ | MongoDB Atlas connection string |
+| `APP_SECRET_KEY` | ✅ | API authentication key (must match mobile app) |
+| `BREVO_API_KEY` | ✅ | Brevo transactional email API key |
+| `EMAIL_FROM` | ❌ | Sender email address (default: `work.anuragkishan@gmail.com`) |
+| `EMAIL_FROM_NAME` | ❌ | Sender display name (default: `Attendance System`) |
+| `GOOGLE_CLIENT_ID` | ❌ | Google OAuth client ID for Google Sign-In |
+| `PORT` | ❌ | Server port (default: `10000`, set by Render) |
+| `LEGACY_APP_SECRET` | ❌ | Old key for backward compatibility during APK transitions |
+
+---
+
+## 🚀 Deployment
+
+The server is deployed on **Render** (free tier) with auto-deploy from GitHub `master` branch.
+
+A **GitHub Actions workflow** (`.github/workflows/keepalive.yml`) pings the server every 5 minutes to prevent Render free-tier sleep.
+
+### Run Locally
+```bash
+npm install
+MONGO_URI=your_uri APP_SECRET_KEY=your_key node server.js
+```
