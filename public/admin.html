@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    
+    .glass {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-gradient {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-gradient:hover {
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+      transition: all 0.3s ease;
+    }
+
+    .btn-danger:hover {
+      box-shadow: 0 0 15px rgba(244, 63, 94, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center antialiased">
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="flex-1 flex items-center justify-center w-full px-4 fade-in">
+    <div class="glass w-full max-w-md p-8 rounded-2xl">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 mb-4">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-2">Admin Dashboard</h2>
+        <p class="text-slate-400 text-sm">Sign in to manage teachers and students</p>
+      </div>
+
+      <form id="loginForm" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Admin Password</label>
+          <input type="password" id="passwordInput" required 
+            class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            placeholder="Enter secure password">
+        </div>
+        <button type="submit" id="loginBtn" class="w-full btn-gradient text-white font-semibold py-3 px-4 rounded-xl flex justify-center items-center">
+          <span>Sign In</span>
+        </button>
+        <div id="loginError" class="hidden text-rose-400 text-sm text-center mt-2"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD -->
+  <div id="dashboard" class="hidden w-full h-screen flex flex-col md:flex-row">
+    
+    <!-- Sidebar -->
+    <div class="w-full md:w-64 glass border-r border-slate-700/50 flex flex-col">
+      <div class="p-6 border-b border-slate-700/50">
+        <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Admin Panel</h1>
+      </div>
+      
+      <nav class="flex-1 p-4 flex flex-col gap-2">
+        <button onclick="switchTab('teachers')" id="tab-teachers" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+          Teachers
+        </button>
+        <button onclick="switchTab('students')" id="tab-students" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+          Students
+        </button>
+      </nav>
+
+      <div class="p-4 border-t border-slate-700/50">
+        <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          Sign Out
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 bg-slate-900 overflow-y-auto">
+      <div class="p-6 md:p-10 max-w-7xl mx-auto">
+        <div class="flex justify-between items-end mb-8">
+          <div>
+            <h2 id="viewTitle" class="text-3xl font-bold text-white mb-2">Teachers</h2>
+            <p id="viewSubtitle" class="text-slate-400">Manage registered faculty accounts.</p>
+          </div>
+          <button onclick="fetchData()" class="btn-gradient px-4 py-2 rounded-lg text-sm font-medium shadow-lg hover:shadow-indigo-500/25 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            Refresh
+          </button>
+        </div>
+
+        <div id="loadingIndicator" class="hidden flex justify-center py-20">
+          <svg class="animate-spin h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+
+        <!-- Table Container -->
+        <div class="glass rounded-2xl overflow-hidden shadow-2xl fade-in border border-slate-700/50">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr id="tableHead" class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs uppercase tracking-wider">
+                  <!-- Generated dynamically -->
+                </tr>
+              </thead>
+              <tbody id="tableBody" class="divide-y divide-slate-700/50">
+                <!-- Generated dynamically -->
+              </tbody>
+            </table>
+          </div>
+          <div id="emptyState" class="hidden py-16 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-800 text-slate-500 mb-4">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+            </div>
+            <h3 class="text-xl font-medium text-slate-300 mb-1">No Data Found</h3>
+            <p class="text-slate-500 text-sm">There are currently no records here.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let authToken = localStorage.getItem('adminToken') || '';
+    let currentTab = 'teachers';
+    
+    // Check initial auth state
+    if (authToken) {
+      showDashboard();
+      fetchData();
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pw = document.getElementById('passwordInput').value;
+      const btn = document.getElementById('loginBtn');
+      
+      btn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 000 8v4a8 8 0 01-8-8z"></path></svg> Verifying...';
+      
+      try {
+        const res = await fetch('/admin-api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          authToken = pw;
+          localStorage.setItem('adminToken', authToken);
+          showDashboard();
+          fetchData();
+        } else {
+          showError('Invalid admin password');
+        }
+      } catch (err) {
+        showError('Server connection failed. Try again.');
+      }
+      
+      btn.innerHTML = '<span>Sign In</span>';
+    });
+
+    function showError(msg) {
+      const errDiv = document.getElementById('loginError');
+      errDiv.textContent = msg;
+      errDiv.classList.remove('hidden');
+    }
+
+    function showDashboard() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+    }
+
+    function logout() {
+      authToken = '';
+      localStorage.removeItem('adminToken');
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('passwordInput').value = '';
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      
+      const tBtn = document.getElementById('tab-teachers');
+      const sBtn = document.getElementById('tab-students');
+      
+      if (tab === 'teachers') {
+        tBtn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 transition-colors';
+        sBtn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors';
+        document.getElementById('viewTitle').textContent = 'Teachers';
+        document.getElementById('viewSubtitle').textContent = 'Manage registered faculty accounts.';
+      } else {
+        sBtn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 transition-colors';
+        tBtn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors';
+        document.getElementById('viewTitle').textContent = 'Students';
+        document.getElementById('viewSubtitle').textContent = 'Manage student hardware device bindings.';
+      }
+
+      fetchData();
+    }
+
+    async function fetchData() {
+      document.getElementById('tableBody').innerHTML = '';
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('loadingIndicator').classList.remove('hidden');
+
+      try {
+        const res = await fetch('/admin-api/data', {
+          headers: { 'x-admin-password': authToken }
+        });
+        
+        if (res.status === 401 || res.status === 403) {
+          logout();
+          return;
+        }
+
+        const data = await res.json();
+        document.getElementById('loadingIndicator').classList.add('hidden');
+        
+        if (data.success) {
+          renderTable(currentTab === 'teachers' ? data.teachers : data.students);
+        } else {
+          alert('Failed to load data: ' + data.error);
+        }
+      } catch (err) {
+        document.getElementById('loadingIndicator').classList.add('hidden');
+        alert('Server connection error.');
+      }
+    }
+
+    function renderTable(items) {
+      const head = document.getElementById('tableHead');
+      const body = document.getElementById('tableBody');
+      const empty = document.getElementById('emptyState');
+      
+      head.innerHTML = '';
+      body.innerHTML = '';
+
+      if (!items || items.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      if (currentTab === 'teachers') {
+        head.innerHTML = `
+          <th class="px-6 py-4 font-semibold">Teacher Name</th>
+          <th class="px-6 py-4 font-semibold">Email Account</th>
+          <th class="px-6 py-4 font-semibold">Allowed Domain</th>
+          <th class="px-6 py-4 font-semibold text-right">Actions</th>
+        `;
+        
+        items.forEach(t => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/50 transition-colors group';
+          tr.innerHTML = `
+            <td class="px-6 py-4">
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg mr-3">
+                  ${t.name.charAt(0).toUpperCase()}
+                </div>
+                <div class="text-sm font-medium text-white">${t.name}</div>
+              </div>
+            </td>
+            <td class="px-6 py-4 text-sm text-slate-300">${t.email}</td>
+            <td class="px-6 py-4 text-sm text-slate-300"><span class="bg-slate-800 px-2 py-1 rounded-md border border-slate-700">${t.allowedDomain || 'Any'}</span></td>
+            <td class="px-6 py-4 text-right">
+              <button onclick="deleteUser('teacher', '${t.email}')" class="btn-danger opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-xs text-white font-medium">Delete</button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+      } else {
+        head.innerHTML = `
+          <th class="px-6 py-4 font-semibold">Student Email</th>
+          <th class="px-6 py-4 font-semibold">Hardware Device ID Hash</th>
+          <th class="px-6 py-4 font-semibold text-right">Actions</th>
+        `;
+        
+        items.forEach(s => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/50 transition-colors group';
+          tr.innerHTML = `
+            <td class="px-6 py-4">
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg mr-3">
+                  ${s.email.charAt(0).toUpperCase()}
+                </div>
+                <div class="text-sm font-medium text-white">${s.email}</div>
+              </div>
+            </td>
+            <td class="px-6 py-4 text-xs text-slate-400 font-mono break-all">${s.deviceId}</td>
+            <td class="px-6 py-4 text-right">
+              <button onclick="deleteUser('student', '${s.email}')" class="btn-danger opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-xs text-white font-medium">Clear Binding</button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+      }
+    }
+
+    async function deleteUser(type, email) {
+      if (!confirm(`Are you sure you want to completely remove this ${type} (${email})? This action cannot be undone.`)) {
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/admin-api/${type}/${encodeURIComponent(email)}`, {
+          method: 'DELETE',
+          headers: { 'x-admin-password': authToken }
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          fetchData(); // Refresh list
+        } else {
+          alert('Delete failed: ' + data.error);
+        }
+      } catch (err) {
+        alert('Server error while deleting.');
+      }
+    }
+  </script>
+</body>
+</html>

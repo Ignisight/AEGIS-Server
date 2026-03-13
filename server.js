@@ -939,6 +939,62 @@ function escapeHtml(text) {
 }
 
 // ==========================================
+// ADMIN DASHBOARD & SECURE ROUTES
+// ==========================================
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Use express.json() if it's not applied globally to admin-api
+app.post('/admin-api/login', express.json(), (req, res) => {
+  if (req.body.password === ADMIN_PASSWORD) res.json({ success: true });
+  else res.status(401).json({ success: false, error: 'Invalid admin password' });
+});
+
+// Protect all other /admin-api/ routes
+app.use('/admin-api', (req, res, next) => {
+  const pw = req.headers['x-admin-password'];
+  if (!pw || pw !== ADMIN_PASSWORD) {
+    return res.status(403).json({ success: false, error: 'Unauthorized Admin' });
+  }
+  next();
+});
+
+app.get('/admin-api/data', async (req, res) => {
+  try {
+    const teachers = await Teacher.find({}, '-password').sort({ name: 1 });
+    const students = await Device.find({}).sort({ registeredAt: -1 });
+    res.json({ success: true, teachers, students });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/admin-api/teacher/:email', async (req, res) => {
+  try {
+    const email = req.params.email.toLowerCase();
+    await Teacher.deleteOne({ email });
+    // Also mark their active sessions as stopped
+    await Session.updateMany({ teacherEmail: email, active: true }, { active: false, stoppedAt: new Date() });
+    res.json({ success: true, message: 'Teacher deleted' });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/admin-api/student/:email', async (req, res) => {
+  try {
+    const email = req.params.email.toLowerCase();
+    await Device.deleteOne({ email });
+    res.json({ success: true, message: 'Student device binding cleared' });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
 // START SERVER
 // ==========================================
 app.listen(PORT, '0.0.0.0', () => {
