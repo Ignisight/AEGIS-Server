@@ -224,18 +224,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// DB ready guard — wait up to 15s if MongoDB is still connecting (Render cold-start)
+// DB ready guard — wait up to 45s if MongoDB is still connecting (Render cold-start)
 app.use('/api', async (req, res, next) => {
   if (dbReady) return next();
 
   let attempts = 0;
-  while (!dbReady && attempts < 30) {
+  // 90 attempts * 500ms = 45 seconds wait time
+  while (!dbReady && attempts < 90) {
     await new Promise(r => setTimeout(r, 500));
     attempts++;
   }
 
   if (!dbReady) {
-    return res.status(503).json({ success: false, error: 'Database timeout. Please try again.' });
+    return res.status(503).json({ success: false, error: 'Database connection is taking too long to wake up. Please try again.' });
   }
   next();
 });
