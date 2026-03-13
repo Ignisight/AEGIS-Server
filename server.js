@@ -139,6 +139,7 @@ const TeacherSchema = new mongoose.Schema({
   name: { type: String, required: true },
   college: { type: String, default: '' },
   department: { type: String, default: '' },
+  allowedDomain: { type: String, default: '' },  // restricts which student emails can attend (e.g. 'nitjsr.ac.in')
   password: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
@@ -160,6 +161,7 @@ const SessionSchema = new mongoose.Schema({
   sessionId: { type: Number, required: true, unique: true, index: true }, // Date.now() — preserved for compatibility
   name: { type: String, required: true },
   code: { type: String, required: true, unique: true, index: true },
+  teacherEmail: { type: String, default: '', lowercase: true },  // links session to teacher for domain validation
   createdAt: { type: Date, default: Date.now, index: true },
   active: { type: Boolean, default: true, index: true },
   stoppedAt: { type: Date, default: null },
@@ -249,12 +251,15 @@ app.post('/api/register', async (req, res) => {
     return res.json({ success: false, error: 'Password must be at least 4 characters' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
+  // Auto-extract domain from teacher email as default allowedDomain
+  const defaultDomain = emailLower.split('@')[1] || '';
   await Teacher.create({
     id: Date.now(),
     email: emailLower,
     name: name.trim(),
     college: (college || '').trim(),
     department: (department || '').trim(),
+    allowedDomain: defaultDomain,
     password: hashedPassword,
   });
   res.json({ success: true, message: 'Account created! You can now login.' });
@@ -276,12 +281,12 @@ app.post('/api/login', async (req, res) => {
 
   res.json({
     success: true,
-    user: { id: user.id, email: user.email, name: user.name, college: user.college || '', department: user.department || '' },
+    user: { id: user.id, email: user.email, name: user.name, college: user.college || '', department: user.department || '', allowedDomain: user.allowedDomain || '' },
   });
 });
 
 app.post('/api/update-profile', async (req, res) => {
-  const { email, name, college, department } = req.body;
+  const { email, name, college, department, allowedDomain } = req.body;
   if (!email) return res.json({ success: false, error: 'Email is required' });
 
   const emailLower = email.toLowerCase().trim();
@@ -291,12 +296,16 @@ app.post('/api/update-profile', async (req, res) => {
   if (name) user.name = name.trim();
   if (college !== undefined) user.college = college.trim();
   if (department !== undefined) user.department = department.trim();
+  if (allowedDomain !== undefined) {
+    // Clean: remove @, trim, lowercase; store only domain part
+    user.allowedDomain = allowedDomain.replace(/@/g, '').trim().toLowerCase();
+  }
   await user.save();
 
   res.json({
     success: true,
     message: 'Profile updated!',
-    user: { name: user.name, email: user.email, college: user.college, department: user.department },
+    user: { name: user.name, email: user.email, college: user.college, department: user.department, allowedDomain: user.allowedDomain || '' },
   });
 });
 
@@ -506,6 +515,17 @@ app.post('/api/student/submit', async (req, res) => {
   if (Date.now() - activeSession.sessionId > 10 * 60 * 1000)
     return res.json({ success: false, error: 'Session expired (10 mins limit exceeded).' });
 
+  // Domain restriction: check if teacher has set an allowedDomain
+  if (activeSession.teacherEmail) {
+    const teacher = await Teacher.findOne({ email: activeSession.teacherEmail });
+    if (teacher && teacher.allowedDomain) {
+      const studentDomain = emailLower.split('@')[1] || '';
+      if (studentDomain.toLowerCase() !== teacher.allowedDomain.toLowerCase()) {
+        return res.json({ success: false, error: `Attendance restricted to @${teacher.allowedDomain} emails. Please sign in with your institutional email.` });
+      }
+    }
+  }
+
   // Location check
   if (activeSession.lat && activeSession.lon) {
     if (!lat || !lon)
@@ -604,7 +624,7 @@ app.post('/submit', async (req, res) => {
 // ==========================================
 
 app.post('/api/start-session', async (req, res) => {
-  const { sessionName, lat, lon } = req.body;
+  const { sessionName, lat, lon, teacherEmail } = req.body;
   if (!sessionName || !sessionName.trim())
     return res.json({ success: false, error: 'Session name is required' });
 
@@ -615,6 +635,7 @@ app.post('/api/start-session', async (req, res) => {
     sessionId: id,
     name: sessionName.trim(),
     code,
+    teacherEmail: (teacherEmail || '').toLowerCase().trim(),
     createdAt: new Date(),
     active: true,
     lat: lat || null,
