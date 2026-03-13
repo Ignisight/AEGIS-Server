@@ -754,6 +754,14 @@ app.post('/api/sessions/clear-all', async (req, res) => {
   res.json({ success: true, deleted: count });
 });
 
+app.post('/api/admin/wipe-student-data', async (req, res) => {
+  const deviceCount = await Device.countDocuments();
+  await Device.deleteMany({});
+  await Session.deleteMany({});
+  await Attendance.deleteMany({});
+  res.json({ success: true, message: 'All student and session data completely wiped.', devicesDeleted: deviceCount });
+});
+
 // Export multiple sessions
 app.get('/api/export-multi', async (req, res) => {
   const { ids } = req.query;
