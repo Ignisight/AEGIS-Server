@@ -225,7 +225,7 @@ app.use((req, res, next) => {
 });
 
 // DB ready guard — wait up to 45s if MongoDB is still connecting (Render cold-start)
-app.use('/api', async (req, res, next) => {
+app.use(async (req, res, next) => {
   if (dbReady) return next();
 
   let attempts = 0;
@@ -236,7 +236,12 @@ app.use('/api', async (req, res, next) => {
   }
 
   if (!dbReady) {
-    return res.status(503).json({ success: false, error: 'Database connection is taking too long to wake up. Please try again.' });
+    // Return appropriate format based on request type
+    if (req.path.startsWith('/api/') || req.method === 'POST') {
+      return res.status(503).json({ success: false, error: 'Database connection is taking too long to wake up. Please try again.' });
+    } else {
+      return res.status(503).send('<h1>Server starting up...</h1><p>The database is waking up. Please refresh the page in a few seconds.</p>');
+    }
   }
   next();
 });
