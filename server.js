@@ -224,10 +224,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// DB ready guard — return 503 if MongoDB not yet connected
-app.use('/api', (req, res, next) => {
+// DB ready guard — wait up to 15s if MongoDB is still connecting (Render cold-start)
+app.use('/api', async (req, res, next) => {
+  if (dbReady) return next();
+
+  let attempts = 0;
+  while (!dbReady && attempts < 30) {
+    await new Promise(r => setTimeout(r, 500));
+    attempts++;
+  }
+
   if (!dbReady) {
-    return res.status(503).json({ success: false, error: 'Server starting up, please retry in a few seconds.' });
+    return res.status(503).json({ success: false, error: 'Database timeout. Please try again.' });
   }
   next();
 });
