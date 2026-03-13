@@ -2,7 +2,8 @@
 
 Backend REST API for the QR Attendance System. Handles teacher authentication, attendance sessions, student device binding, OTP password reset, and data export.
 
-**Live Server:** [attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com)
+**Live Server:** [attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com)  
+**Admin Dashboard:** [attendance-server-ddgs.onrender.com/admin](https://attendance-server-ddgs.onrender.com/admin)
 
 ### 📥 Download the Mobile App
 👉 [Download Android APK (v2.3.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/9c2dba80-104a-4f13-9988-7b64d765963c)
@@ -76,6 +77,15 @@ attendance-server/
 | POST | `/api/scan` | Upload QR code image for server-side decode |
 | GET | `/api/responses/:sessionId` | Get all responses for a session |
 
+### Admin Dashboard (Web)
+| Method | URL | Description |
+|---|---|---|
+| GET | `/admin` | Open secure management dashboard |
+| POST | `/admin-api/login` | Authenticate using Admin User/Password |
+| GET | `/admin-api/data` | Fetch all teachers and student devices |
+| DELETE| `/admin-api/teacher/:email` | Remove teacher & stop their sessions |
+| DELETE| `/admin-api/student/:email` | Wipe device binding (reset student phone) |
+
 ### Export
 | Method | Endpoint | Description |
 |---|---|---|
@@ -121,6 +131,8 @@ attendance-server/
 | `GOOGLE_CLIENT_ID` | ❌ | Google OAuth client ID for Google Sign-In |
 | `PORT` | ❌ | Server port (default: `10000`, set by Render) |
 | `LEGACY_APP_SECRET` | ❌ | Old key for backward compatibility during APK transitions |
+| `ADMIN_USER` | ✅ | Username for the Admin Dashboard (default: `admin`) |
+| `ADMIN_PASSWORD` | ✅ | Password for the Admin Dashboard (default: `admin123`) |
 
 ---
 
