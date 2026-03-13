@@ -888,11 +888,11 @@ function getStudentFormHTML(session, error = null) {
       <h1>Mark Your Attendance</h1>
       <span class="session-badge">📚 ${escapeHtml(sessionName)}</span>
     </div>
-    <div class="warn">⚠️ Use your official <strong>@${ALLOWED_EMAIL_DOMAIN}</strong> email only.</div>
+    <div class="warn">⚠️ Use your official institutional email only.</div>
     <form id="form">
       <input type="hidden" name="sessionCode" value="${escapeHtml(sessionCode)}">
       <div><label>Full Name</label><input type="text" name="name" placeholder="e.g. Rahul Kumar" required autocomplete="name"></div>
-      <div><label>College Email</label><input type="email" name="email" placeholder="e.g. 2023ugcs045@${ALLOWED_EMAIL_DOMAIN}" required autocomplete="email"></div>
+      <div><label>College Email</label><input type="email" name="email" placeholder="e.g. 2023ugcs045@college.edu" required autocomplete="email"></div>
       <button type="submit" id="btn">✅ Submit Attendance</button>
     </form>
     <div class="result" id="result"></div>
@@ -945,7 +945,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  ║  Local:    http://localhost:${PORT}           ║`);
   console.log(`  ║  Network:  http://${ip}:${PORT}      ║`);
   console.log('  ╠════════════════════════════════════════════╣');
-  console.log(`  ║  Email Domain: @${ALLOWED_EMAIL_DOMAIN}      ║`);
+  console.log(`  ║  Email Domain: Any (Teacher controlled) ║`);
   console.log('  ║  Storage:  MongoDB Atlas (Persistent) 🍃  ║');
   console.log(`  ║  Google Sign-In: ${GOOGLE_CLIENT_ID ? '✅ Enabled' : '❌ Not set'}        ║`);
   console.log('  ╚════════════════════════════════════════════╝');
