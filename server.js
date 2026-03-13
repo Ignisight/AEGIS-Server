@@ -941,6 +941,7 @@ function escapeHtml(text) {
 // ==========================================
 // ADMIN DASHBOARD & SECURE ROUTES
 // ==========================================
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 app.get('/admin', (req, res) => {
@@ -949,14 +950,19 @@ app.get('/admin', (req, res) => {
 
 // Use express.json() if it's not applied globally to admin-api
 app.post('/admin-api/login', express.json(), (req, res) => {
-  if (req.body.password === ADMIN_PASSWORD) res.json({ success: true });
-  else res.status(401).json({ success: false, error: 'Invalid admin password' });
+  const { username, password } = req.body;
+  if (username === ADMIN_USER && password === ADMIN_PASSWORD) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, error: 'Invalid admin credentials' });
+  }
 });
 
 // Protect all other /admin-api/ routes
 app.use('/admin-api', (req, res, next) => {
+  const user = req.headers['x-admin-user'];
   const pw = req.headers['x-admin-password'];
-  if (!pw || pw !== ADMIN_PASSWORD) {
+  if (!user || !pw || user !== ADMIN_USER || pw !== ADMIN_PASSWORD) {
     return res.status(403).json({ success: false, error: 'Unauthorized Admin' });
   }
   next();

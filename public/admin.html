@@ -75,6 +75,12 @@
 
       <form id="loginForm" class="space-y-6">
         <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Admin Username</label>
+          <input type="text" id="usernameInput" required 
+            class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            placeholder="Enter username">
+        </div>
+        <div>
           <label class="block text-sm font-medium text-slate-300 mb-2">Admin Password</label>
           <input type="password" id="passwordInput" required 
             class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -165,18 +171,20 @@
   </div>
 
   <script>
-    let authToken = localStorage.getItem('adminToken') || '';
+    let authUser = localStorage.getItem('adminUser') || '';
+    let authPass = localStorage.getItem('adminPass') || '';
     let currentTab = 'teachers';
     
     // Check initial auth state
-    if (authToken) {
+    if (authUser && authPass) {
       showDashboard();
       fetchData();
     }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const pw = document.getElementById('passwordInput').value;
+      const user = document.getElementById('usernameInput').value;
+      const pass = document.getElementById('passwordInput').value;
       const btn = document.getElementById('loginBtn');
       
       btn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 000 8v4a8 8 0 01-8-8z"></path></svg> Verifying...';
@@ -185,17 +193,19 @@
         const res = await fetch('/admin-api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pw })
+          body: JSON.stringify({ username: user, password: pass })
         });
         
         const data = await res.json();
         if (data.success) {
-          authToken = pw;
-          localStorage.setItem('adminToken', authToken);
+          authUser = user;
+          authPass = pass;
+          localStorage.setItem('adminUser', authUser);
+          localStorage.setItem('adminPass', authPass);
           showDashboard();
           fetchData();
         } else {
-          showError('Invalid admin password');
+          showError('Invalid admin credentials');
         }
       } catch (err) {
         showError('Server connection failed. Try again.');
@@ -216,10 +226,13 @@
     }
 
     function logout() {
-      authToken = '';
-      localStorage.removeItem('adminToken');
+      authUser = '';
+      authPass = '';
+      localStorage.removeItem('adminUser');
+      localStorage.removeItem('adminPass');
       document.getElementById('dashboard').classList.add('hidden');
       document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('usernameInput').value = '';
       document.getElementById('passwordInput').value = '';
     }
 
@@ -251,7 +264,10 @@
 
       try {
         const res = await fetch('/admin-api/data', {
-          headers: { 'x-admin-password': authToken }
+          headers: { 
+            'x-admin-user': authUser,
+            'x-admin-password': authPass 
+          }
         });
         
         if (res.status === 401 || res.status === 403) {
@@ -351,7 +367,10 @@
       try {
         const res = await fetch(`/admin-api/${type}/${encodeURIComponent(email)}`, {
           method: 'DELETE',
-          headers: { 'x-admin-password': authToken }
+          headers: { 
+            'x-admin-user': authUser,
+            'x-admin-password': authPass 
+          }
         });
         
         const data = await res.json();
