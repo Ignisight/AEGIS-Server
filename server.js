@@ -23,7 +23,6 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 // COLLEGE CONFIG
 // ==========================================
-const ALLOWED_EMAIL_DOMAIN = 'nitjsr.ac.in';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '188263362905-05e73in41h1ib970spt6q3meoidg2fte.apps.googleusercontent.com';
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'work.anuragkishan@gmail.com';
@@ -458,8 +457,6 @@ app.post('/api/student/login', async (req, res) => {
     return res.json({ success: false, error: 'Email and deviceId are required' });
 
   const emailLower = email.toLowerCase().trim();
-  if (!emailLower.endsWith('@' + ALLOWED_EMAIL_DOMAIN))
-    return res.json({ success: false, error: `Only @${ALLOWED_EMAIL_DOMAIN} emails are allowed.` });
 
   // 1 Phone = 1 Email: check if this deviceId is already bound to a DIFFERENT email
   const existingDevice = await Device.findOne({ deviceId });
@@ -569,8 +566,6 @@ app.post('/submit', async (req, res) => {
   if (!email || !name) return res.json({ success: false, error: 'Email and name are required' });
 
   const emailLower = email.toLowerCase().trim();
-  if (!emailLower.endsWith('@' + ALLOWED_EMAIL_DOMAIN))
-    return res.json({ success: false, error: `Only @${ALLOWED_EMAIL_DOMAIN} emails are allowed.` });
 
   let activeSession;
   if (sessionCode) {
@@ -585,6 +580,17 @@ app.post('/submit', async (req, res) => {
 
   if (Date.now() - activeSession.sessionId > 10 * 60 * 1000)
     return res.json({ success: false, error: 'Session expired (10 mins limit exceeded).' });
+
+  // Domain restriction: check if teacher has set an allowedDomain
+  if (activeSession.teacherEmail) {
+    const teacher = await Teacher.findOne({ email: activeSession.teacherEmail });
+    if (teacher && teacher.allowedDomain) {
+      const studentDomain = emailLower.split('@')[1] || '';
+      if (studentDomain.toLowerCase() !== teacher.allowedDomain.toLowerCase()) {
+        return res.json({ success: false, error: `Attendance restricted to @${teacher.allowedDomain} emails. Please sign in with your institutional email.` });
+      }
+    }
+  }
 
   if (activeSession.lat && activeSession.lon) {
     if (!lat || !lon)
