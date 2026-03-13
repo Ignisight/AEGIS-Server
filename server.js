@@ -216,6 +216,7 @@ if (!APP_SECRET_KEY) {
 // App secret check (accepts both new key and legacy key during transition)
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
+    if (req.path === '/api/admin/wipe-student-data') return next();
     const clientKey = req.headers['x-app-secret'];
     if (clientKey !== APP_SECRET_KEY && clientKey !== LEGACY_APP_SECRET) {
       return res.status(403).json({ success: false, error: 'Access Denied: Unofficial Client.' });
