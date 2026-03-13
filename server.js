@@ -781,11 +781,14 @@ app.get('/api/export-multi', async (req, res) => {
   const wb = XLSX.utils.book_new();
   const ws = rows.length > 0 ? XLSX.utils.json_to_sheet(excelData) : XLSX.utils.aoa_to_sheet([excelHeaders]);
   if (rows.length > 0) ws['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+  const sheetName = 'Attendance'.slice(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="Attendance_Export.xlsx"');
-  res.send(Buffer.from(buffer));
+  res.setHeader('Content-Length', buffer.length);
+  res.end(buffer);
 });
 
 // Export single session
@@ -824,13 +827,16 @@ app.get('/api/export', async (req, res) => {
     }));
     const ws = XLSX.utils.json_to_sheet(excelData);
     ws['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }];
-    XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
+    XLSX.utils.book_append_sheet(wb, ws, sheetTitle.slice(0, 31));
   }
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const safeFilename = `Attendance_${sheetTitle.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+  
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="Attendance_${sheetTitle}.xlsx"`);
-  res.send(Buffer.from(buffer));
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+  res.setHeader('Content-Length', buffer.length);
+  res.end(buffer);
 });
 
 // ==========================================
