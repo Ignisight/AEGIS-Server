@@ -161,7 +161,7 @@ const SessionSchema = new mongoose.Schema({
   name: { type: String, required: true },
   code: { type: String, required: true, unique: true, index: true },
   teacherEmail: { type: String, default: '', lowercase: true },  // links session to teacher for domain validation
-  createdAt: { type: Date, default: Date.now, index: true },
+  createdAt: { type: Date, default: Date.now },
   active: { type: Boolean, default: true, index: true },
   stoppedAt: { type: Date, default: null },
   lat: { type: Number, default: null },
