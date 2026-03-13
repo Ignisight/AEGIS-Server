@@ -978,6 +978,62 @@ app.get('/admin-api/data', async (req, res) => {
   }
 });
 
+app.get('/admin-api/stats', async (req, res) => {
+  try {
+    const start = Date.now();
+    const [tCount, sCount, aCount, dCount] = await Promise.all([
+      Teacher.countDocuments(),
+      Session.countDocuments(),
+      Attendance.countDocuments(),
+      Device.countDocuments()
+    ]);
+    const dbLatency = Date.now() - start;
+
+    // Last 7 days attendance trend
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const recentAttendance = await Attendance.find({ 
+      submittedAt: { $gte: sevenDaysAgo } 
+    }, 'submittedAt branch year');
+
+    // Aggregate stats
+    const branchStats = {};
+    const yearStats = {};
+    const hourlyDistribution = Array(24).fill(0);
+
+    recentAttendance.forEach(a => {
+      const b = a.branch || 'Unknown';
+      branchStats[b] = (branchStats[b] || 0) + 1;
+      
+      const y = a.year || 'Unknown';
+      yearStats[y] = (yearStats[y] || 0) + 1;
+
+      if (a.submittedAt) {
+        const hour = new Date(a.submittedAt).getHours();
+        hourlyDistribution[hour]++;
+      }
+    });
+
+    res.json({
+      success: true,
+      counts: { teachers: tCount, sessions: sCount, attendance: aCount, devices: dCount },
+      performance: {
+        uptime: Math.floor(process.uptime()),
+        dbLatency,
+        memoryUsage: Math.floor(process.memoryUsage().heapUsed / 1024 / 1024)
+      },
+      distribution: {
+        branches: branchStats,
+        years: yearStats,
+        hourly: hourlyDistribution
+      }
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 app.delete('/admin-api/teacher/:email', async (req, res) => {
   try {
     const email = req.params.email.toLowerCase();

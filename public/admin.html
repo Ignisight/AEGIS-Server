@@ -5,57 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Admin Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #0f172a;
-      color: #e2e8f0;
-      overflow-x: hidden;
-    }
-    
-    .glass {
-      background: rgba(30, 41, 59, 0.7);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-
-    .btn-gradient {
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      transition: all 0.3s ease;
-    }
-    
-    .btn-gradient:hover {
-      box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
-      transform: translateY(-1px);
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
-      transition: all 0.3s ease;
-    }
-
-    .btn-danger:hover {
-      box-shadow: 0 0 15px rgba(244, 63, 94, 0.5);
-      transform: translateY(-1px);
-    }
-
-    .fade-in {
-      animation: fadeIn 0.4s ease forwards;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Scrollbar */
+    body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; overflow-x: hidden; }
+    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+    .btn-gradient { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); transition: all 0.3s ease; }
+    .btn-gradient:hover { box-shadow: 0 0 15px rgba(99, 102, 241, 0.5); transform: translateY(-1px); }
+    .btn-danger { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); transition: all 0.3s ease; }
+    .btn-danger:hover { box-shadow: 0 0 15px rgba(244, 63, 94, 0.5); transform: translateY(-1px); }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center antialiased">
@@ -65,38 +28,27 @@
     <div class="glass w-full max-w-md p-8 rounded-2xl">
       <div class="text-center mb-8">
         <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 mb-4">
-          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
         </div>
         <h2 class="text-2xl font-bold text-white mb-2">Admin Dashboard</h2>
-        <p class="text-slate-400 text-sm">Sign in to manage teachers and students</p>
+        <p class="text-slate-400 text-sm">NIT Jamshedpur Attendance System</p>
       </div>
 
       <form id="loginForm" class="space-y-6">
         <div>
           <label class="block text-sm font-medium text-slate-300 mb-2">Admin Username</label>
-          <input type="text" id="usernameInput" required 
-            class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-            placeholder="Enter username">
+          <input type="text" id="usernameInput" required class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="Enter username">
         </div>
         <div class="relative">
           <label class="block text-sm font-medium text-slate-300 mb-2">Admin Password</label>
           <div class="relative">
-            <input type="password" id="passwordInput" required 
-              class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all pr-12"
-              placeholder="Enter secure password">
+            <input type="password" id="passwordInput" required class="w-full bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all pr-12" placeholder="Enter secure password">
             <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400 transition-colors p-1">
-              <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
+              <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             </button>
           </div>
         </div>
-        <button type="submit" id="loginBtn" class="w-full btn-gradient text-white font-semibold py-3 px-4 rounded-xl flex justify-center items-center">
-          <span>Sign In</span>
-        </button>
+        <button type="submit" id="loginBtn" class="w-full btn-gradient text-white font-semibold py-3 px-4 rounded-xl flex justify-center items-center"><span>Sign In</span></button>
         <div id="loginError" class="hidden text-rose-400 text-sm text-center mt-2"></div>
       </form>
     </div>
@@ -107,12 +59,13 @@
     
     <!-- Sidebar -->
     <div class="w-full md:w-64 glass border-r border-slate-700/50 flex flex-col">
-      <div class="p-6 border-b border-slate-700/50">
-        <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Admin Panel</h1>
-      </div>
-      
+      <div class="p-6 border-b border-slate-700/50"><h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Admin Panel</h1></div>
       <nav class="flex-1 p-4 flex flex-col gap-2">
-        <button onclick="switchTab('teachers')" id="tab-teachers" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 transition-colors">
+        <button onclick="switchTab('monitoring')" id="tab-monitoring" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+          Monitoring
+        </button>
+        <button onclick="switchTab('teachers')" id="tab-teachers" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
           Teachers
         </button>
@@ -121,59 +74,90 @@
           Students
         </button>
       </nav>
-
-      <div class="p-4 border-t border-slate-700/50">
-        <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          Sign Out
-        </button>
-      </div>
+      <div class="p-4 border-t border-slate-700/50"><button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>Sign Out</button></div>
     </div>
 
     <!-- Content -->
     <div class="flex-1 bg-slate-900 overflow-y-auto">
-      <div class="p-6 md:p-10 max-w-7xl mx-auto">
-        <div class="flex justify-between items-end mb-8">
-          <div>
-            <h2 id="viewTitle" class="text-3xl font-bold text-white mb-2">Teachers</h2>
-            <p id="viewSubtitle" class="text-slate-400">Manage registered faculty accounts.</p>
+      <div id="content" class="p-6 md:p-10 max-w-7xl mx-auto">
+        <!-- Dashboard / Monitoring View -->
+        <div id="monitoringView" class="fade-in">
+          <div class="flex justify-between items-end mb-8">
+            <div><h2 class="text-3xl font-bold text-white mb-2">System Monitoring</h2><p class="text-slate-400">Real-time health and attendance insights.</p></div>
+            <button onclick="fetchStats()" class="btn-gradient px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>Refresh</button>
           </div>
-          <button onclick="fetchData()" class="btn-gradient px-4 py-2 rounded-lg text-sm font-medium shadow-lg hover:shadow-indigo-500/25 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-            Refresh
-          </button>
-        </div>
 
-        <div id="loadingIndicator" class="hidden flex justify-center py-20">
-          <svg class="animate-spin h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-        </div>
-
-        <!-- Table Container -->
-        <div class="glass rounded-2xl overflow-hidden shadow-2xl fade-in border border-slate-700/50">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr id="tableHead" class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs uppercase tracking-wider">
-                  <!-- Generated dynamically -->
-                </tr>
-              </thead>
-              <tbody id="tableBody" class="divide-y divide-slate-700/50">
-                <!-- Generated dynamically -->
-              </tbody>
-            </table>
-          </div>
-          <div id="emptyState" class="hidden py-16 text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-800 text-slate-500 mb-4">
-              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+          <!-- Quick Stats -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="glass p-6 rounded-2xl">
+              <div class="text-slate-400 text-sm mb-1 uppercase tracking-wider font-semibold">Teachers</div>
+              <div id="stat-teachers" class="text-3xl font-bold text-white">0</div>
             </div>
-            <h3 class="text-xl font-medium text-slate-300 mb-1">No Data Found</h3>
-            <p class="text-slate-500 text-sm">There are currently no records here.</p>
+            <div class="glass p-6 rounded-2xl">
+              <div class="text-slate-400 text-sm mb-1 uppercase tracking-wider font-semibold">Active Sessions</div>
+              <div id="stat-sessions" class="text-3xl font-bold text-white">0</div>
+            </div>
+            <div class="glass p-6 rounded-2xl">
+              <div class="text-slate-400 text-sm mb-1 uppercase tracking-wider font-semibold">Device Bindings</div>
+              <div id="stat-devices" class="text-3xl font-bold text-white">0</div>
+            </div>
+            <div class="glass p-6 rounded-2xl">
+              <div class="text-slate-400 text-sm mb-1 uppercase tracking-wider font-semibold">Total Attendance</div>
+              <div id="stat-attendance" class="text-3xl font-bold text-white">0</div>
+            </div>
+          </div>
+
+          <!-- Charts -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="glass p-6 rounded-2xl h-80 flex flex-col">
+              <h3 class="text-lg font-semibold mb-4">Branch Distribution</h3>
+              <div class="flex-1 relative"><canvas id="branchChart"></canvas></div>
+            </div>
+            <div class="glass p-6 rounded-2xl h-80 flex flex-col">
+              <h3 class="text-lg font-semibold mb-4">Hourly Traffic (Last 7 Days)</h3>
+              <div class="flex-1 relative"><canvas id="hourlyChart"></canvas></div>
+            </div>
+          </div>
+
+          <!-- System Health -->
+          <div class="mt-8 glass p-6 rounded-2xl">
+            <h3 class="text-lg font-semibold mb-6 flex items-center gap-2">
+              <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
+              Server Status
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div class="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl">
+                <span class="text-slate-400">Database Latency</span>
+                <span id="health-latency" class="font-mono text-emerald-400">--ms</span>
+              </div>
+              <div class="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl">
+                <span class="text-slate-400">Server Uptime</span>
+                <span id="health-uptime" class="font-mono text-indigo-400">--</span>
+              </div>
+              <div class="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl">
+                <span class="text-slate-400">Memory Load</span>
+                <span id="health-memory" class="font-mono text-purple-400">--MB</span>
+              </div>
+            </div>
           </div>
         </div>
 
+        <!-- Table View (Teachers/Students) -->
+        <div id="tableView" class="hidden fade-in">
+           <div class="flex justify-between items-end mb-8">
+            <div><h2 id="viewTitle" class="text-3xl font-bold text-white mb-2">Teachers</h2><p id="viewSubtitle" class="text-slate-400">Faculty list.</p></div>
+            <button onclick="fetchData()" class="btn-gradient px-4 py-2 rounded-lg text-sm font-medium">Refresh List</button>
+          </div>
+          <div class="glass rounded-2xl overflow-hidden border border-slate-700/50">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead><tr id="tableHead" class="bg-slate-800/80 border-b border-slate-700 text-slate-300 text-xs uppercase tracking-wider"></tr></thead>
+                <tbody id="tableBody" class="divide-y divide-slate-700/50"></tbody>
+              </table>
+            </div>
+            <div id="emptyState" class="hidden py-16 text-center text-slate-500">No records found.</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -182,13 +166,11 @@
     let authUser = localStorage.getItem('adminUser') || '';
     let authPass = localStorage.getItem('adminPass') || '';
     let loginTime = localStorage.getItem('adminLoginTime') || 0;
-    let currentTab = 'teachers';
+    let currentTab = 'monitoring';
+    let branchChart, hourlyChart;
     
-    // Auto-logout after 30 minutes of inactivity
     const SESSION_TIMEOUT = 30 * 60 * 1000;
-    if (Date.now() - loginTime > SESSION_TIMEOUT) {
-      logout();
-    }
+    if (Date.now() - loginTime > SESSION_TIMEOUT) logout();
 
     function togglePassword() {
       const input = document.getElementById('passwordInput');
@@ -201,215 +183,124 @@
         icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
       }
     }
-    
-    // Check initial auth state
-    if (authUser && authPass) {
-      showDashboard();
-      fetchData();
-    }
+
+    if (authUser && authPass) { showDashboard(); fetchStats(); }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const user = document.getElementById('usernameInput').value;
       const pass = document.getElementById('passwordInput').value;
-      const btn = document.getElementById('loginBtn');
-      
-      btn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 000 8v4a8 8 0 01-8-8z"></path></svg> Verifying...';
-      
-      try {
-        const res = await fetch('/admin-api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: user, password: pass })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          authUser = user;
-          authPass = pass;
-          localStorage.setItem('adminUser', authUser);
-          localStorage.setItem('adminPass', authPass);
-          localStorage.setItem('adminLoginTime', Date.now());
-          showDashboard();
-          fetchData();
-        } else {
-          showError('Invalid admin credentials');
-        }
-      } catch (err) {
-        showError('Server connection failed. Try again.');
-      }
-      
-      btn.innerHTML = '<span>Sign In</span>';
+      const res = await fetch('/admin-api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, password:pass}) });
+      const data = await res.json();
+      if (data.success) {
+        authUser = user; authPass = pass;
+        localStorage.setItem('adminUser', user); localStorage.setItem('adminPass', pass);
+        localStorage.setItem('adminLoginTime', Date.now());
+        showDashboard(); fetchStats();
+      } else { document.getElementById('loginError').textContent = 'Invalid credentials'; document.getElementById('loginError').classList.remove('hidden'); }
     });
 
-    function showError(msg) {
-      const errDiv = document.getElementById('loginError');
-      errDiv.textContent = msg;
-      errDiv.classList.remove('hidden');
-    }
-
-    function showDashboard() {
-      document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('dashboard').classList.remove('hidden');
-    }
-
-    function logout() {
-      authUser = '';
-      authPass = '';
-      localStorage.removeItem('adminUser');
-      localStorage.removeItem('adminPass');
-      document.getElementById('dashboard').classList.add('hidden');
-      document.getElementById('loginScreen').classList.remove('hidden');
-      document.getElementById('usernameInput').value = '';
-      document.getElementById('passwordInput').value = '';
-    }
+    function showDashboard() { document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('dashboard').classList.remove('hidden'); }
+    function logout() { localStorage.clear(); location.reload(); }
 
     function switchTab(tab) {
       currentTab = tab;
-      
-      const tBtn = document.getElementById('tab-teachers');
-      const sBtn = document.getElementById('tab-students');
-      
-      if (tab === 'teachers') {
-        tBtn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 transition-colors';
-        sBtn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors';
-        document.getElementById('viewTitle').textContent = 'Teachers';
-        document.getElementById('viewSubtitle').textContent = 'Manage registered faculty accounts.';
-      } else {
-        sBtn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 transition-colors';
-        tBtn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors';
-        document.getElementById('viewTitle').textContent = 'Students';
-        document.getElementById('viewSubtitle').textContent = 'Manage student hardware device bindings.';
-      }
+      const tabs = ['monitoring', 'teachers', 'students'];
+      tabs.forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        if (t === tab) { btn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 transition-colors'; }
+        else { btn.className = 'flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors'; }
+      });
+      document.getElementById('monitoringView').classList.toggle('hidden', tab !== 'monitoring');
+      document.getElementById('tableView').classList.toggle('hidden', tab === 'monitoring');
+      if (tab === 'monitoring') fetchStats(); else fetchData();
+    }
 
-      fetchData();
+    async function fetchStats() {
+      const res = await fetch('/admin-api/stats', { headers: { 'x-admin-user': authUser, 'x-admin-password': authPass } });
+      const data = await res.json();
+      if (!data.success) return logout();
+      
+      document.getElementById('stat-teachers').textContent = data.counts.teachers;
+      document.getElementById('stat-sessions').textContent = data.counts.sessions;
+      document.getElementById('stat-attendance').textContent = data.counts.attendance;
+      document.getElementById('stat-devices').textContent = data.counts.devices;
+      
+      document.getElementById('health-latency').textContent = data.performance.dbLatency + 'ms';
+      document.getElementById('health-uptime').textContent = formatDuration(data.performance.uptime);
+      document.getElementById('health-memory').textContent = data.performance.memoryUsage + 'MB';
+
+      updateCharts(data.distribution);
+    }
+
+    function formatDuration(sec) {
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      return (h > 0 ? h + 'h ' : '') + m + 'm';
+    }
+
+    function updateCharts(dist) {
+      const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8' } } } };
+      
+      // Branch Chart
+      if (branchChart) branchChart.destroy();
+      branchChart = new Chart(document.getElementById('branchChart'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(dist.branches),
+          datasets: [{ data: Object.values(dist.branches), backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'], borderWidth: 0 }]
+        },
+        options: chartOptions
+      });
+
+      // Hourly Chart
+      if (hourlyChart) hourlyChart.destroy();
+      hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+        type: 'bar',
+        data: {
+          labels: Array.from({length: 24}, (_, i) => i + ':00'),
+          datasets: [{ label: 'Sign-ins', data: dist.hourly, backgroundColor: '#6366f1', borderRadius: 4 }]
+        },
+        options: { ...chartOptions, scales: { y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } } }
+      });
     }
 
     async function fetchData() {
-      document.getElementById('tableBody').innerHTML = '';
-      document.getElementById('emptyState').classList.add('hidden');
-      document.getElementById('loadingIndicator').classList.remove('hidden');
-
-      try {
-        const res = await fetch('/admin-api/data', {
-          headers: { 
-            'x-admin-user': authUser,
-            'x-admin-password': authPass 
-          }
-        });
-        
-        if (res.status === 401 || res.status === 403) {
-          logout();
-          return;
-        }
-
-        const data = await res.json();
-        document.getElementById('loadingIndicator').classList.add('hidden');
-        
-        if (data.success) {
-          renderTable(currentTab === 'teachers' ? data.teachers : data.students);
-        } else {
-          alert('Failed to load data: ' + data.error);
-        }
-      } catch (err) {
-        document.getElementById('loadingIndicator').classList.add('hidden');
-        alert('Server connection error.');
-      }
+      const type = currentTab === 'teachers' ? 'teachers' : 'students';
+      document.getElementById('viewTitle').textContent = type.charAt(0).toUpperCase() + type.slice(1);
+      const res = await fetch('/admin-api/data', { headers: { 'x-admin-user': authUser, 'x-admin-password': authPass } });
+      const data = await res.json();
+      renderTable(currentTab === 'teachers' ? data.teachers : data.students);
     }
 
     function renderTable(items) {
-      const head = document.getElementById('tableHead');
       const body = document.getElementById('tableBody');
-      const empty = document.getElementById('emptyState');
-      
-      head.innerHTML = '';
-      body.innerHTML = '';
-
-      if (!items || items.length === 0) {
-        empty.classList.remove('hidden');
-        return;
-      }
+      const head = document.getElementById('tableHead');
+      body.innerHTML = ''; head.innerHTML = '';
+      if (!items?.length) { document.getElementById('emptyState').classList.remove('hidden'); return; }
+      document.getElementById('emptyState').classList.add('hidden');
 
       if (currentTab === 'teachers') {
-        head.innerHTML = `
-          <th class="px-6 py-4 font-semibold">Teacher Name</th>
-          <th class="px-6 py-4 font-semibold">Email Account</th>
-          <th class="px-6 py-4 font-semibold">Allowed Domain</th>
-          <th class="px-6 py-4 font-semibold text-right">Actions</th>
-        `;
-        
-        items.forEach(t => {
-          const tr = document.createElement('tr');
-          tr.className = 'hover:bg-slate-800/50 transition-colors group';
-          tr.innerHTML = `
-            <td class="px-6 py-4">
-              <div class="flex items-center">
-                <div class="h-10 w-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg mr-3">
-                  ${t.name.charAt(0).toUpperCase()}
-                </div>
-                <div class="text-sm font-medium text-white">${t.name}</div>
-              </div>
-            </td>
-            <td class="px-6 py-4 text-sm text-slate-300">${t.email}</td>
-            <td class="px-6 py-4 text-sm text-slate-300"><span class="bg-slate-800 px-2 py-1 rounded-md border border-slate-700">${t.allowedDomain || 'Any'}</span></td>
-            <td class="px-6 py-4 text-right">
-              <button onclick="deleteUser('teacher', '${t.email}')" class="btn-danger opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-xs text-white font-medium">Delete</button>
-            </td>
-          `;
-          body.appendChild(tr);
-        });
+        head.innerHTML = '<th class="px-6 py-4">Teacher</th><th class="px-6 py-4">Email</th><th class="px-6 py-4 text-right">Action</th>';
+        items.forEach(t => { body.innerHTML += `<tr class="hover:bg-slate-800/50">
+          <td class="px-6 py-4 font-medium text-white">${t.name}</td>
+          <td class="px-6 py-4 text-slate-400">${t.email}</td>
+          <td class="px-6 py-4 text-right"><button onclick="deleteX('teacher', '${t.email}')" class="text-rose-400 hover:bg-rose-500/10 px-3 py-1 rounded-lg">Delete</button></td>
+        </tr>`; });
       } else {
-        head.innerHTML = `
-          <th class="px-6 py-4 font-semibold">Student Email</th>
-          <th class="px-6 py-4 font-semibold">Hardware Device ID Hash</th>
-          <th class="px-6 py-4 font-semibold text-right">Actions</th>
-        `;
-        
-        items.forEach(s => {
-          const tr = document.createElement('tr');
-          tr.className = 'hover:bg-slate-800/50 transition-colors group';
-          tr.innerHTML = `
-            <td class="px-6 py-4">
-              <div class="flex items-center">
-                <div class="h-10 w-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg mr-3">
-                  ${s.email.charAt(0).toUpperCase()}
-                </div>
-                <div class="text-sm font-medium text-white">${s.email}</div>
-              </div>
-            </td>
-            <td class="px-6 py-4 text-xs text-slate-400 font-mono break-all">${s.deviceId}</td>
-            <td class="px-6 py-4 text-right">
-              <button onclick="deleteUser('student', '${s.email}')" class="btn-danger opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-xs text-white font-medium">Clear Binding</button>
-            </td>
-          `;
-          body.appendChild(tr);
-        });
+        head.innerHTML = '<th class="px-6 py-4">Student Email</th><th class="px-6 py-4">Hardware ID</th><th class="px-6 py-4 text-right">Action</th>';
+        items.forEach(s => { body.innerHTML += `<tr class="hover:bg-slate-800/50">
+          <td class="px-6 py-4 text-white">${s.email}</td>
+          <td class="px-6 py-4 font-mono text-xs text-slate-500">${s.deviceId.substring(0,32)}...</td>
+          <td class="px-6 py-4 text-right"><button onclick="deleteX('student', '${s.email}')" class="text-rose-400 hover:bg-rose-500/10 px-3 py-1 rounded-lg">Clear Bind</button></td>
+        </tr>`; });
       }
     }
 
-    async function deleteUser(type, email) {
-      if (!confirm(`Are you sure you want to completely remove this ${type} (${email})? This action cannot be undone.`)) {
-        return;
-      }
-      
-      try {
-        const res = await fetch(`/admin-api/${type}/${encodeURIComponent(email)}`, {
-          method: 'DELETE',
-          headers: { 
-            'x-admin-user': authUser,
-            'x-admin-password': authPass 
-          }
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          fetchData(); // Refresh list
-        } else {
-          alert('Delete failed: ' + data.error);
-        }
-      } catch (err) {
-        alert('Server error while deleting.');
-      }
+    async function deleteX(type, email) {
+      if (!confirm(`Confirm deletion of ${type}: ${email}?`)) return;
+      await fetch(`/admin-api/${type}/${encodeURIComponent(email)}`, { method:'DELETE', headers:{'x-admin-user':authUser, 'x-admin-password':authPass} });
+      fetchData();
     }
   </script>
 </body>
