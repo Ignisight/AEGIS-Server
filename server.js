@@ -214,9 +214,10 @@ if (!APP_SECRET_KEY) {
 }
 
 // App secret check (accepts both new key and legacy key during transition)
+// For file download endpoints, also accepts ?key= query param since downloadAsync can't send headers
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
-    const clientKey = req.headers['x-app-secret'];
+    const clientKey = req.headers['x-app-secret'] || req.query.key || '';
     if (clientKey !== APP_SECRET_KEY && clientKey !== LEGACY_APP_SECRET) {
       return res.status(403).json({ success: false, error: 'Access Denied: Unofficial Client.' });
     }
