@@ -154,6 +154,9 @@
 
           <!-- Student Filters -->
           <div id="studentFilters" class="hidden mb-6 flex flex-wrap gap-4">
+            <select id="filterDomain" onchange="applyStudentFilters()" class="bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm">
+              <option value="">All Domains</option>
+            </select>
             <select id="filterYear" onchange="applyStudentFilters()" class="bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm">
               <option value="">All Years</option>
             </select>
@@ -292,11 +295,13 @@
     }
 
     function parseEmailDetails(email) {
-      const match = email.split('@')[0].match(/^(\d{4})(ug|pg)([a-z]+)(\d+)$/i);
+      const parts = email.split('@');
+      const domain = parts[1] || 'Unknown';
+      const match = parts[0].match(/^(\d{4})(ug|pg)([a-z]+)(\d+)$/i);
       if (match) {
-        return { year: match[1], program: match[2].toUpperCase(), branch: match[3].toUpperCase() };
+        return { domain, year: match[1], program: match[2].toUpperCase(), branch: match[3].toUpperCase() };
       }
-      return { year: 'Unknown', program: 'Unknown', branch: 'Unknown' };
+      return { domain, year: 'Unknown', program: 'Unknown', branch: 'Unknown' };
     }
 
     async function fetchData() {
@@ -323,26 +328,31 @@
     function populateFilterOptions() {
       const getSetString = (arr, key) => [...new Set(arr.map(s => s[key]).filter(v => v !== 'Unknown'))].sort().map(v => `<option value="${v}">${v}</option>`).join('');
       
+      const currentDomain = document.getElementById('filterDomain').value;
       const currentYear = document.getElementById('filterYear').value;
       const currentProg = document.getElementById('filterProgram').value;
       const currentBranch = document.getElementById('filterBranch').value;
 
+      document.getElementById('filterDomain').innerHTML = '<option value="">All Domains</option>' + getSetString(allStudents, 'domain');
       document.getElementById('filterYear').innerHTML = '<option value="">All Years</option>' + getSetString(allStudents, 'year');
       document.getElementById('filterProgram').innerHTML = '<option value="">All Programs</option>' + getSetString(allStudents, 'program');
       document.getElementById('filterBranch').innerHTML = '<option value="">All Branches</option>' + getSetString(allStudents, 'branch');
       
+      if(document.querySelector(`#filterDomain option[value="${currentDomain}"]`)) document.getElementById('filterDomain').value = currentDomain;
       if(document.querySelector(`#filterYear option[value="${currentYear}"]`)) document.getElementById('filterYear').value = currentYear;
       if(document.querySelector(`#filterProgram option[value="${currentProg}"]`)) document.getElementById('filterProgram').value = currentProg;
       if(document.querySelector(`#filterBranch option[value="${currentBranch}"]`)) document.getElementById('filterBranch').value = currentBranch;
     }
 
     function applyStudentFilters() {
+      const domain = document.getElementById('filterDomain').value;
       const year = document.getElementById('filterYear').value;
       const program = document.getElementById('filterProgram').value;
       const branch = document.getElementById('filterBranch').value;
       const sortBy = document.getElementById('sortStudents').value;
       
       let filtered = allStudents.filter(s => {
+        if (domain && s.domain !== domain) return false;
         if (year && s.year !== year) return false;
         if (program && s.program !== program) return false;
         if (branch && s.branch !== branch) return false;
