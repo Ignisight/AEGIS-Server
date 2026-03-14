@@ -146,7 +146,28 @@
         <div id="tableView" class="hidden fade-in">
            <div class="flex justify-between items-end mb-8">
             <div><h2 id="viewTitle" class="text-3xl font-bold text-white mb-2">Teachers</h2><p id="viewSubtitle" class="text-slate-400">Faculty list.</p></div>
-            <button onclick="fetchData()" class="btn-gradient px-4 py-2 rounded-lg text-sm font-medium">Refresh List</button>
+            <div class="flex gap-3">
+              <button id="massDeleteBtn" onclick="massDeleteStudents()" class="hidden btn-danger px-4 py-2 rounded-lg text-sm font-medium">Delete Shown</button>
+              <button onclick="fetchData()" class="btn-gradient px-4 py-2 rounded-lg text-sm font-medium">Refresh List</button>
+            </div>
+          </div>
+
+          <!-- Student Filters -->
+          <div id="studentFilters" class="hidden mb-6 flex flex-wrap gap-4">
+            <select id="filterYear" onchange="applyStudentFilters()" class="bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm">
+              <option value="">All Years</option>
+            </select>
+            <select id="filterProgram" onchange="applyStudentFilters()" class="bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm">
+              <option value="">All Programs</option>
+            </select>
+            <select id="filterBranch" onchange="applyStudentFilters()" class="bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm">
+              <option value="">All Branches</option>
+            </select>
+            <select id="sortStudents" onchange="applyStudentFilters()" class="bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm">
+              <option value="newest">Sort: Newest First</option>
+              <option value="oldest">Sort: Oldest First</option>
+              <option value="email">Sort: Email A-Z</option>
+            </select>
           </div>
           <div class="glass rounded-2xl overflow-hidden border border-slate-700/50">
             <div class="overflow-x-auto">
@@ -168,6 +189,9 @@
     let loginTime = localStorage.getItem('adminLoginTime') || 0;
     let currentTab = 'monitoring';
     let branchChart, hourlyChart;
+    let allTeachers = [];
+    let allStudents = [];
+    let renderedStudents = [];
     
     const SESSION_TIMEOUT = 30 * 60 * 1000;
     if (loginTime > 0 && Date.now() - loginTime > SESSION_TIMEOUT) {
@@ -267,35 +291,125 @@
       });
     }
 
+    function parseEmailDetails(email) {
+      const match = email.split('@')[0].match(/^(\d{4})(ug|pg)([a-z]+)(\d+)$/i);
+      if (match) {
+        return { year: match[1], program: match[2].toUpperCase(), branch: match[3].toUpperCase() };
+      }
+      return { year: 'Unknown', program: 'Unknown', branch: 'Unknown' };
+    }
+
     async function fetchData() {
       const type = currentTab === 'teachers' ? 'teachers' : 'students';
       document.getElementById('viewTitle').textContent = type.charAt(0).toUpperCase() + type.slice(1);
       const res = await fetch('/admin-api/data', { headers: { 'x-admin-user': authUser, 'x-admin-password': authPass } });
       const data = await res.json();
-      renderTable(currentTab === 'teachers' ? data.teachers : data.students);
+      
+      allTeachers = data.teachers || [];
+      allStudents = (data.students || []).map(s => ({ ...s, ...parseEmailDetails(s.email) }));
+
+      if (currentTab === 'teachers') {
+        document.getElementById('studentFilters').classList.add('hidden');
+        document.getElementById('massDeleteBtn').classList.add('hidden');
+        renderTableTeachers(allTeachers);
+      } else {
+        document.getElementById('studentFilters').classList.remove('hidden');
+        document.getElementById('massDeleteBtn').classList.remove('hidden');
+        populateFilterOptions();
+        applyStudentFilters();
+      }
     }
 
-    function renderTable(items) {
+    function populateFilterOptions() {
+      const getSetString = (arr, key) => [...new Set(arr.map(s => s[key]).filter(v => v !== 'Unknown'))].sort().map(v => `<option value="${v}">${v}</option>`).join('');
+      
+      const currentYear = document.getElementById('filterYear').value;
+      const currentProg = document.getElementById('filterProgram').value;
+      const currentBranch = document.getElementById('filterBranch').value;
+
+      document.getElementById('filterYear').innerHTML = '<option value="">All Years</option>' + getSetString(allStudents, 'year');
+      document.getElementById('filterProgram').innerHTML = '<option value="">All Programs</option>' + getSetString(allStudents, 'program');
+      document.getElementById('filterBranch').innerHTML = '<option value="">All Branches</option>' + getSetString(allStudents, 'branch');
+      
+      if(document.querySelector(`#filterYear option[value="${currentYear}"]`)) document.getElementById('filterYear').value = currentYear;
+      if(document.querySelector(`#filterProgram option[value="${currentProg}"]`)) document.getElementById('filterProgram').value = currentProg;
+      if(document.querySelector(`#filterBranch option[value="${currentBranch}"]`)) document.getElementById('filterBranch').value = currentBranch;
+    }
+
+    function applyStudentFilters() {
+      const year = document.getElementById('filterYear').value;
+      const program = document.getElementById('filterProgram').value;
+      const branch = document.getElementById('filterBranch').value;
+      const sortBy = document.getElementById('sortStudents').value;
+      
+      let filtered = allStudents.filter(s => {
+        if (year && s.year !== year) return false;
+        if (program && s.program !== program) return false;
+        if (branch && s.branch !== branch) return false;
+        return true;
+      });
+      
+      filtered.sort((a, b) => {
+        if (sortBy === 'newest') return new Date(b.registeredAt || 0) - new Date(a.registeredAt || 0);
+        if (sortBy === 'oldest') return new Date(a.registeredAt || 0) - new Date(b.registeredAt || 0);
+        if (sortBy === 'email') return a.email.localeCompare(b.email);
+        return 0;
+      });
+      
+      renderedStudents = filtered;
+      document.getElementById('massDeleteBtn').textContent = `Delete Shown (${renderedStudents.length})`;
+      renderTableStudents(renderedStudents);
+    }
+
+    function renderTableTeachers(items) {
       const body = document.getElementById('tableBody');
       const head = document.getElementById('tableHead');
       body.innerHTML = ''; head.innerHTML = '';
       if (!items?.length) { document.getElementById('emptyState').classList.remove('hidden'); return; }
       document.getElementById('emptyState').classList.add('hidden');
 
-      if (currentTab === 'teachers') {
-        head.innerHTML = '<th class="px-6 py-4">Teacher</th><th class="px-6 py-4">Email</th><th class="px-6 py-4 text-right">Action</th>';
-        items.forEach(t => { body.innerHTML += `<tr class="hover:bg-slate-800/50">
-          <td class="px-6 py-4 font-medium text-white">${t.name}</td>
-          <td class="px-6 py-4 text-slate-400">${t.email}</td>
-          <td class="px-6 py-4 text-right"><button onclick="deleteX('teacher', '${t.email}')" class="text-rose-400 hover:bg-rose-500/10 px-3 py-1 rounded-lg">Delete</button></td>
-        </tr>`; });
+      head.innerHTML = '<th class="px-6 py-4">Teacher</th><th class="px-6 py-4">Email</th><th class="px-6 py-4 text-right">Action</th>';
+      items.forEach(t => { body.innerHTML += `<tr class="hover:bg-slate-800/50">
+        <td class="px-6 py-4 font-medium text-white">${t.name}</td>
+        <td class="px-6 py-4 text-slate-400">${t.email}</td>
+        <td class="px-6 py-4 text-right"><button onclick="deleteX('teacher', '${t.email}')" class="text-rose-400 hover:bg-rose-500/10 px-3 py-1 rounded-lg">Delete</button></td>
+      </tr>`; });
+    }
+
+    function renderTableStudents(items) {
+      const body = document.getElementById('tableBody');
+      const head = document.getElementById('tableHead');
+      body.innerHTML = ''; head.innerHTML = '';
+      if (!items?.length) { document.getElementById('emptyState').classList.remove('hidden'); return; }
+      document.getElementById('emptyState').classList.add('hidden');
+
+      head.innerHTML = '<th class="px-6 py-4">Student Email</th><th class="px-6 py-4">Details</th><th class="px-6 py-4">Hardware ID</th><th class="px-6 py-4 text-right">Action</th>';
+      items.forEach(s => { 
+        const badgeColor = s.year === 'Unknown' ? 'bg-slate-700 text-slate-300' : 'bg-indigo-500/20 text-indigo-300';
+        body.innerHTML += `<tr class="hover:bg-slate-800/50">
+        <td class="px-6 py-4 text-white">${s.email}</td>
+        <td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-semibold ${badgeColor}">${s.year} • ${s.program} • ${s.branch}</span></td>
+        <td class="px-6 py-4 font-mono text-xs text-slate-500">${s.deviceId.substring(0,24)}...</td>
+        <td class="px-6 py-4 text-right"><button onclick="deleteX('student', '${s.email}')" class="text-rose-400 hover:bg-rose-500/10 px-3 py-1 rounded-lg">Clear</button></td>
+      </tr>`; });
+    }
+
+    async function massDeleteStudents() {
+      if (!renderedStudents.length) return;
+      if (!confirm(`Are you sure you want to delete bindings for ALL ${renderedStudents.length} students currently shown?\n\nThis cannot be undone.`)) return;
+      
+      const emails = renderedStudents.map(s => s.email);
+      const res = await fetch('/admin-api/students/bulk-delete', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json', 'x-admin-user': authUser, 'x-admin-password': authPass },
+        body: JSON.stringify({ emails })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchData();
       } else {
-        head.innerHTML = '<th class="px-6 py-4">Student Email</th><th class="px-6 py-4">Hardware ID</th><th class="px-6 py-4 text-right">Action</th>';
-        items.forEach(s => { body.innerHTML += `<tr class="hover:bg-slate-800/50">
-          <td class="px-6 py-4 text-white">${s.email}</td>
-          <td class="px-6 py-4 font-mono text-xs text-slate-500">${s.deviceId.substring(0,32)}...</td>
-          <td class="px-6 py-4 text-right"><button onclick="deleteX('student', '${s.email}')" class="text-rose-400 hover:bg-rose-500/10 px-3 py-1 rounded-lg">Clear Bind</button></td>
-        </tr>`; });
+        alert('Error: ' + data.error);
       }
     }
 

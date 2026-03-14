@@ -1062,6 +1062,18 @@ app.delete('/admin-api/student/:email', async (req, res) => {
   }
 });
 
+app.post('/admin-api/students/bulk-delete', async (req, res) => {
+  try {
+    const { emails } = req.body;
+    if (!Array.isArray(emails)) return res.json({ success: false, error: 'Expected an array of emails' });
+    const matchEmails = emails.map(e => e.toLowerCase());
+    const result = await Device.deleteMany({ email: { $in: matchEmails } });
+    res.json({ success: true, message: `Cleared bindings for ${result.deletedCount} students.` });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // ==========================================
 // START SERVER
 // ==========================================
