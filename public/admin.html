@@ -170,7 +170,9 @@
     let branchChart, hourlyChart;
     
     const SESSION_TIMEOUT = 30 * 60 * 1000;
-    if (Date.now() - loginTime > SESSION_TIMEOUT) logout();
+    if (loginTime > 0 && Date.now() - loginTime > SESSION_TIMEOUT) {
+      logout();
+    }
 
     function togglePassword() {
       const input = document.getElementById('passwordInput');
