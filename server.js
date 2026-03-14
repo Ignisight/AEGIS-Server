@@ -984,14 +984,26 @@ app.get('/admin-api/data', async (req, res) => {
   }
 });
 
+let cachedStats = null;
+let lastStatsFetch = 0;
+
 app.get('/admin-api/stats', async (req, res) => {
   try {
+    const CACHE_TTL = 30000; // 30 seconds cache to prevent spam refreshing load
+    if (cachedStats && (Date.now() - lastStatsFetch < CACHE_TTL)) {
+      // Update real-time Node metrics even when cached
+      cachedStats.performance.uptime = Math.floor(process.uptime());
+      cachedStats.performance.memoryUsage = Math.floor(process.memoryUsage().heapUsed / 1024 / 1024);
+      return res.json({ success: true, ...cachedStats, cached: true });
+    }
+
     const start = Date.now();
+    // estimatedDocumentCount is O(1) and much faster than countDocuments()
     const [tCount, sCount, aCount, dCount] = await Promise.all([
-      Teacher.countDocuments(),
-      Session.countDocuments(),
-      Attendance.countDocuments(),
-      Device.countDocuments()
+      Teacher.estimatedDocumentCount(),
+      Session.estimatedDocumentCount(),
+      Attendance.estimatedDocumentCount(),
+      Device.estimatedDocumentCount()
     ]);
     const dbLatency = Date.now() - start;
 
@@ -999,30 +1011,41 @@ app.get('/admin-api/stats', async (req, res) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    const recentAttendance = await Attendance.find({ 
-      submittedAt: { $gte: sevenDaysAgo } 
-    }, 'submittedAt branch year');
-
-    // Aggregate stats
-    const branchStats = {};
-    const yearStats = {};
-    const hourlyDistribution = Array(24).fill(0);
-
-    recentAttendance.forEach(a => {
-      const b = a.branch || 'Unknown';
-      branchStats[b] = (branchStats[b] || 0) + 1;
-      
-      const y = a.year || 'Unknown';
-      yearStats[y] = (yearStats[y] || 0) + 1;
-
-      if (a.submittedAt) {
-        const hour = new Date(a.submittedAt).getHours();
-        hourlyDistribution[hour]++;
+    // Powerful MongoDB Aggregation to offload processing from Node.js Event Loop
+    const pipeline = [
+      { $match: { submittedAt: { $gte: sevenDaysAgo } } },
+      {
+        $facet: {
+          branches: [
+            { $group: { _id: { $ifNull: ["$branch", "Unknown"] }, count: { $sum: 1 } } }
+          ],
+          years: [
+            { $group: { _id: { $ifNull: ["$year", "Unknown"] }, count: { $sum: 1 } } }
+          ],
+          hourly: [
+            { $project: { hour: { $hour: { date: "$submittedAt" } } } },
+            { $group: { _id: "$hour", count: { $sum: 1 } } }
+          ]
+        }
       }
+    ];
+
+    const aggResult = await Attendance.aggregate(pipeline);
+    const result = aggResult[0] || { branches: [], years: [], hourly: [] };
+
+    // Format output
+    const branchStats = {};
+    result.branches.forEach(b => branchStats[b._id || 'Unknown'] = b.count);
+
+    const yearStats = {};
+    result.years.forEach(y => yearStats[y._id || 'Unknown'] = y.count);
+
+    const hourlyDistribution = Array(24).fill(0);
+    result.hourly.forEach(h => {
+      if (h._id >= 0 && h._id < 24) hourlyDistribution[h._id] = h.count;
     });
 
-    res.json({
-      success: true,
+    cachedStats = {
       counts: { teachers: tCount, sessions: sCount, attendance: aCount, devices: dCount },
       performance: {
         uptime: Math.floor(process.uptime()),
@@ -1034,7 +1057,10 @@ app.get('/admin-api/stats', async (req, res) => {
         years: yearStats,
         hourly: hourlyDistribution
       }
-    });
+    };
+    lastStatsFetch = Date.now();
+
+    res.json({ success: true, ...cachedStats, cached: false });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }
