@@ -251,7 +251,7 @@ app.use(async (req, res, next) => {
 // ==========================================
 
 app.post('/api/register', async (req, res) => {
-  const { email, password, name, college, department } = req.body;
+  const { email, password, name, college, department, allowedDomain } = req.body;
   if (!email || !password || !name)
     return res.json({ success: false, error: 'Name, email and password are required' });
 
@@ -264,15 +264,17 @@ app.post('/api/register', async (req, res) => {
     return res.json({ success: false, error: 'Password must be at least 4 characters' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  // Auto-extract domain from teacher email as default allowedDomain
-  const defaultDomain = emailLower.split('@')[1] || '';
+  // Auto-extract domain from teacher email as fallback default
+  const extractedDomain = emailLower.split('@')[1] || '';
+  const finalDomain = (allowedDomain && allowedDomain.trim()) ? allowedDomain.replace(/@/g, '').trim().toLowerCase() : extractedDomain;
+
   await Teacher.create({
     id: Date.now(),
     email: emailLower,
     name: name.trim(),
     college: (college || '').trim(),
     department: (department || '').trim(),
-    allowedDomain: defaultDomain,
+    allowedDomain: finalDomain,
     password: hashedPassword,
   });
   res.json({ success: true, message: 'Account created! You can now login.' });
