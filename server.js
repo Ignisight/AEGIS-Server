@@ -264,9 +264,8 @@ app.post('/api/register', async (req, res) => {
     return res.json({ success: false, error: 'Password must be at least 4 characters' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  // Auto-extract domain from teacher email as fallback default
-  const extractedDomain = emailLower.split('@')[1] || '';
-  const finalDomain = (allowedDomain && allowedDomain.trim()) ? allowedDomain.replace(/@/g, '').trim().toLowerCase() : extractedDomain;
+  // Keep domain optional: if not provided, leave empty to allow all student domains
+  const finalDomain = (allowedDomain && allowedDomain.trim()) ? allowedDomain.replace(/@/g, '').trim().toLowerCase() : '';
 
   await Teacher.create({
     id: Date.now(),
