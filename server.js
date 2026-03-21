@@ -76,6 +76,29 @@ function parseRollInfo(email) {
   return { year: '-', program: '-', branch: '-', rollNo: '-', rollNumber: local.toUpperCase() };
 }
 
+function getSessionFilename(sessionDoc) {
+  if (!sessionDoc || !sessionDoc.createdAt) {
+    const timestamp = sessionDoc?.sessionId || Date.now();
+    const safeName = (sessionDoc?.name || 'Session').replace(/[^a-zA-Z0-9]/g, '_');
+    const d = new Date(timestamp);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `attendance_${safeName}_${dd}-${mm}-${yyyy}_${timestamp}.xlsx`;
+  }
+  const d = new Date(sessionDoc.createdAt);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  let hh = d.getHours();
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  hh = hh % 12 || 12;
+  const hhStr = String(hh).padStart(2, '0');
+  const safeName = sessionDoc.name.replace(/[^a-zA-Z0-9]/g, '_');
+  return `attendance_${safeName}_${dd}-${mm}-${yyyy}_${hhStr}-${min}${ampm}.xlsx`;
+}
+
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
@@ -763,110 +786,21 @@ app.post('/api/sessions/clear-all', async (req, res) => {
   res.json({ success: true, deleted: count });
 });
 
-// Export multiple sessions — separate Excel file per session, bundled in ZIP
-app.get('/api/export-multi', async (req, res) => {
-  const { ids } = req.query;
-  let sessionIds = ids ? ids.split(',').map(Number) : [];
-
-  // Fetch the actual session docs
-  let sessions = sessionIds.length > 0
-    ? await Session.find({ sessionId: { $in: sessionIds } })
-    : await Session.find();
-
-  if (sessions.length === 0) {
-    return res.status(404).json({ success: false, error: 'No sessions found.' });
-  }
-
-  const excelHeaders = ['Roll No', 'Name', 'Reg No', 'Email', 'Year', 'Program', 'Branch', 'Session', 'Date', 'Time'];
-  const colWidths = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }];
-
-  // Helper: build a single xlsx buffer for a session
-  function buildSessionXlsx(sessionDoc, rows) {
-    const wb = XLSX.utils.book_new();
-    if (rows.length === 0) {
-      const ws = XLSX.utils.aoa_to_sheet([excelHeaders]);
-      XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
-    } else {
-      const excelData = rows.map(r => ({
-        'Roll No': r.rollNo || '-', 'Name': r.name,
-        'Reg No': r.regNo || '-', 'Email': r.email,
-        'Year': r.year || '-', 'Program': r.program || '-',
-        'Branch': r.branch || '-', 'Session': sessionDoc.name,
-        'Date': r.date, 'Time': r.time,
-      }));
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      ws['!cols'] = colWidths;
-      XLSX.utils.book_append_sheet(wb, ws, sessionDoc.name.slice(0, 31));
-    }
-    return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  }
-
-  // Helper: generate safe filename from session
-  function getSessionFilename(sessionDoc) {
-    const d = new Date(sessionDoc.createdAt);
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    let hh = d.getHours();
-    const min = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hh >= 12 ? 'PM' : 'AM';
-    hh = hh % 12 || 12;
-    const safeName = sessionDoc.name.replace(/[^a-zA-Z0-9]/g, '_');
-    return `Attendance_${safeName}_${dd}-${mm}-${yyyy}_${sessionDoc.sessionId}.xlsx`;
-  }
-
-  // ── SINGLE SESSION: return direct xlsx ──
-  if (sessions.length === 1) {
-    const s = sessions[0];
-    const rows = await Attendance.find({ sessionId: s.sessionId });
-    rows.sort((a, b) => (a.rollNo || '').localeCompare(b.rollNo || '', undefined, { numeric: true }));
-    const buffer = buildSessionXlsx(s, rows);
-    const filename = getSessionFilename(s);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length);
-    return res.end(buffer);
-  }
-
-  // ── MULTIPLE SESSIONS: create ZIP with separate xlsx files ──
-  res.setHeader('Content-Type', 'application/zip');
-  res.setHeader('Content-Disposition', 'attachment; filename="Attendance_Export.zip"');
-
-  const archive = archiver('zip', { zlib: { level: 5 } });
-  archive.pipe(res);
-
-  for (const s of sessions) {
-    const rows = await Attendance.find({ sessionId: s.sessionId });
-    rows.sort((a, b) => (a.rollNo || '').localeCompare(b.rollNo || '', undefined, { numeric: true }));
-    const buffer = buildSessionXlsx(s, rows);
-    const filename = getSessionFilename(s);
-    archive.append(buffer, { name: filename });
-  }
-
-  await archive.finalize();
-});
-
 // Export single session
 app.get('/api/export', async (req, res) => {
   const { sessionId } = req.query;
-  let rows = [];
-  let sheetTitle = 'All Sessions';
-
-  if (sessionId) {
-    const session = await Session.findOne({ sessionId: Number(sessionId) });
-    if (session) {
-      rows = await Attendance.find({ sessionId: session.sessionId });
-      sheetTitle = session.name;
-    }
-  } else {
-    rows = await Attendance.find();
+  
+  if (!sessionId) {
+    return res.status(400).json({ success: false, error: 'sessionId is required for export.' });
   }
 
-  rows.sort((a, b) => (a.rollNo || '').localeCompare(b.rollNo || '', undefined, { numeric: true }));
+  const session = await Session.findOne({ sessionId: Number(sessionId) });
+  if (!session) {
+    return res.status(404).json({ success: false, error: 'Session not found.' });
+  }
 
-  const sessions = await Session.find({ sessionId: { $in: rows.map(r => r.sessionId) } });
-  const sessionMap = {};
-  sessions.forEach(s => (sessionMap[s.sessionId] = s.name));
+  const rows = await Attendance.find({ sessionId: session.sessionId });
+  rows.sort((a, b) => (a.rollNo || '').localeCompare(b.rollNo || '', undefined, { numeric: true }));
 
   const excelHeaders = ['Roll No', 'Name', 'Reg No', 'Email', 'Year', 'Program', 'Branch', 'Session', 'Date', 'Time'];
 
@@ -879,18 +813,16 @@ app.get('/api/export', async (req, res) => {
       'Roll No': r.rollNo || '-', 'Name': r.name,
       'Reg No': r.regNo || '-', 'Email': r.email,
       'Year': r.year || '-', 'Program': r.program || '-',
-      'Branch': r.branch || '-', 'Session': sessionMap[r.sessionId] || 'Unknown',
+      'Branch': r.branch || '-', 'Session': session.name,
       'Date': r.date, 'Time': r.time,
     }));
     const ws = XLSX.utils.json_to_sheet(excelData);
     ws['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }];
-    XLSX.utils.book_append_sheet(wb, ws, sheetTitle.slice(0, 31));
+    XLSX.utils.book_append_sheet(wb, ws, session.name.slice(0, 31));
   }
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  const safeFilename = sessionId 
-    ? `Attendance_${sheetTitle.replace(/[^a-z0-9]/gi, '_')}_${sessionId}.xlsx`
-    : `Attendance_All_Sessions.xlsx`;
+  const safeFilename = getSessionFilename(session);
   
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
