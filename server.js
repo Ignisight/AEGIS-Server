@@ -697,11 +697,11 @@ app.get('/api/status', async (req, res) => {
 });
 
 app.get('/api/responses', async (req, res) => {
-  const { sessionName } = req.query;
+  const { sessionId } = req.query;
   let rows = [];
 
-  if (sessionName) {
-    const session = await Session.findOne({ name: sessionName });
+  if (sessionId) {
+    const session = await Session.findOne({ sessionId: Number(sessionId) });
     if (session) rows = await Attendance.find({ sessionId: session.sessionId });
   } else {
     const activeSession = await Session.findOne({ active: true });
@@ -812,7 +812,7 @@ app.get('/api/export-multi', async (req, res) => {
     const ampm = hh >= 12 ? 'PM' : 'AM';
     hh = hh % 12 || 12;
     const safeName = sessionDoc.name.replace(/[^a-zA-Z0-9]/g, '_');
-    return `Attendance_${safeName}_${dd}-${mm}-${yyyy}_${hh}-${min}${ampm}.xlsx`;
+    return `Attendance_${safeName}_${dd}-${mm}-${yyyy}_${sessionDoc.sessionId}.xlsx`;
   }
 
   // ── SINGLE SESSION: return direct xlsx ──
@@ -848,14 +848,16 @@ app.get('/api/export-multi', async (req, res) => {
 
 // Export single session
 app.get('/api/export', async (req, res) => {
-  const { sessionName } = req.query;
+  const { sessionId } = req.query;
   let rows = [];
   let sheetTitle = 'All Sessions';
 
-  if (sessionName) {
-    const session = await Session.findOne({ name: sessionName });
-    if (session) rows = await Attendance.find({ sessionId: session.sessionId });
-    sheetTitle = sessionName;
+  if (sessionId) {
+    const session = await Session.findOne({ sessionId: Number(sessionId) });
+    if (session) {
+      rows = await Attendance.find({ sessionId: session.sessionId });
+      sheetTitle = session.name;
+    }
   } else {
     rows = await Attendance.find();
   }
@@ -886,7 +888,9 @@ app.get('/api/export', async (req, res) => {
   }
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  const safeFilename = `Attendance_${sheetTitle.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+  const safeFilename = sessionId 
+    ? `Attendance_${sheetTitle.replace(/[^a-z0-9]/gi, '_')}_${sessionId}.xlsx`
+    : `Attendance_All_Sessions.xlsx`;
   
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
