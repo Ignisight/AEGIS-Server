@@ -2,6 +2,8 @@
 // Attendance System — MongoDB Atlas Edition
 // =============================================
 
+process.env.TZ = 'Asia/Kolkata';
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
