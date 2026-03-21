@@ -2,11 +2,13 @@
 
 Backend REST API for the QR Attendance System. Handles teacher authentication, attendance sessions, student device binding, OTP password reset, and data export.
 
-**Live Server:** [attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com)  
+**Live Server (App Gateway):** [attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com)  
 **Admin Dashboard:** [attendance-server-ddgs.onrender.com/admin](https://attendance-server-ddgs.onrender.com/admin)
 
-### 📥 Download the Mobile App
-👉 [Download Android APK ](https://share.google/wIbWSh6W1FG9P4Am3)
+### 📥 Download the Official App (Required)
+The system now uses **App-Only Security**. Browser-based submission is disabled to ensure device binding and geofencing integrity. Students must use the official Android app.
+
+👉 [Download Official APK (v2.6.0)](https://expo.dev/accounts/ignisight/projects/attendance-system/builds/5d2f4548-15b6-47e9-a055-1e10447c9310)
 
 ---
 

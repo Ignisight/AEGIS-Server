@@ -607,72 +607,6 @@ app.post('/api/student/submit', async (req, res) => {
 });
 
 // ==========================================
-// STUDENT WEB SUBMISSION (LEGACY/FALLBACK)
-// ==========================================
-app.post('/submit', async (req, res) => {
-  const { email, name, sessionCode, lat, lon } = req.body;
-  if (!email || !name) return res.json({ success: false, error: 'Email and name are required' });
-
-  const emailLower = email.toLowerCase().trim();
-
-  let activeSession;
-  if (sessionCode) {
-    activeSession = await Session.findOne({ code: sessionCode });
-    if (activeSession && activeSession.stoppedAt)
-      return res.json({ success: false, error: 'This session has ended. Attendance is closed.' });
-  } else {
-    activeSession = await Session.findOne({ active: true });
-  }
-  if (!activeSession)
-    return res.json({ success: false, error: 'No active session. The link may have expired.' });
-
-  if (Date.now() - activeSession.sessionId > 10 * 60 * 1000)
-    return res.json({ success: false, error: 'Session expired (10 mins limit exceeded).' });
-
-  // Domain restriction: check if teacher has set an allowedDomain
-  if (activeSession.teacherEmail) {
-    const teacher = await Teacher.findOne({ email: activeSession.teacherEmail });
-    if (teacher && teacher.allowedDomain) {
-      const studentDomain = emailLower.split('@')[1] || '';
-      if (studentDomain.toLowerCase() !== teacher.allowedDomain.toLowerCase()) {
-        return res.json({ success: false, error: `Attendance restricted to @${teacher.allowedDomain} emails. Please sign in with your institutional email.` });
-      }
-    }
-  }
-
-  if (activeSession.lat && activeSession.lon) {
-    if (!lat || !lon)
-      return res.json({ success: false, error: 'Location permission is required.' });
-    const dist = getDistanceFromLatLonInMeters(activeSession.lat, activeSession.lon, lat, lon);
-    if (dist > 80)
-      return res.json({ success: false, error: `You are too far (${dist.toFixed(0)}m). Must be within 80m.` });
-  }
-
-  const rollInfo = parseRollInfo(emailLower);
-  const now = new Date();
-
-  try {
-    await Attendance.create({
-      sessionId: activeSession.sessionId,
-      email: emailLower,
-      name: name.trim(),
-      regNo: rollInfo.rollNumber,
-      year: rollInfo.year,
-      program: rollInfo.program,
-      branch: rollInfo.branch,
-      rollNo: rollInfo.rollNo,
-      submittedAt: now,
-      date: now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
-      time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-    });
-  } catch (e) {
-    if (e.code === 11000)
-      return res.json({ success: false, error: 'You have already submitted for this session.' });
-    throw e;
-  }
-  res.json({ success: true, message: 'Attendance recorded!' });
-});
-
 // ==========================================
 // TEACHER SESSION API
 // ==========================================
@@ -908,75 +842,43 @@ function getStudentFormHTML(session, error = null) {
 <body><div class="box"><div class="icon">📋</div><div class="title">NIT Jamshedpur Attendance</div>
 <div class="msg">No active session right now. Please check with your teacher.</div></div></body></html>`;
   }
+  const apkUrl = "https://expo.dev/accounts/ignisight/projects/attendance-system/builds/5d2f4548-15b6-47e9-a055-1e10447c9310";
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mark Attendance — ${escapeHtml(sessionName)}</title>
+  <title>Attendance System — Official App Required</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0f172a; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .card { background: #1e293b; border-radius: 24px; padding: 32px; width: 100%; max-width: 420px; border: 1px solid #334155; }
-    .header { text-align: center; margin-bottom: 28px; }
-    .emoji { font-size: 48px; }
-    h1 { font-size: 22px; font-weight: 700; margin-top: 12px; color: #f8fafc; }
-    .session-badge { background: #1d4ed8; color: #bfdbfe; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; margin-top: 8px; }
-    label { display: block; font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-    input { width: 100%; background: #0f172a; border: 1.5px solid #334155; border-radius: 12px; padding: 14px 16px; color: #f1f5f9; font-size: 16px; margin-bottom: 16px; outline: none; }
-    input:focus { border-color: #6366f1; }
-    button { width: 100%; background: #6366f1; color: #fff; border: none; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; }
-    button:active { opacity: 0.85; }
-    .result { margin-top: 16px; padding: 16px; border-radius: 12px; text-align: center; font-weight: 600; display: none; }
-    .result.success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
-    .result.error   { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
-    .warn { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); border-radius: 12px; padding: 12px 14px; margin-bottom: 20px; color: #fde68a; font-size: 13px; }
+    body { background: #020617; color: #f8fafc; font-family: 'Outfit', sans-serif; display: flex; align-items:center; justify-content:center; min-height:100vh; margin:0; overflow:hidden; }
+    .bg { position:fixed; top:-50%; left:-50%; width:200%; height:200%; background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #020617 60%); z-index:-1; opacity:0.6; }
+    .card { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(20px); border-radius: 32px; padding: 48px 32px; width: 100%; max-width: 440px; border: 1px solid rgba(255, 255, 255, 0.1); text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+    .icon-box { background: linear-gradient(135deg, #6366f1, #a855f7); width: 80px; height: 80px; border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 40px; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4); }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.5px; }
+    p { color: #94a3b8; line-height: 1.6; margin-bottom: 32px; font-size: 16px; }
+    .session-info { background: rgba(99, 102, 241, 0.1); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2); padding: 8px 16px; border-radius: 99px; display: inline-block; font-weight: 600; font-size: 14px; margin-bottom: 24px; }
+    .btn { background: #fff; color: #020617; text-decoration: none; padding: 18px 32px; border-radius: 16px; font-weight: 700; font-size: 17px; display: block; transition: all 0.2s; box-shadow: 0 4px 12px rgba(255,255,255,0.2); }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,255,255,0.3); background: #f1f5f9; }
+    .btn:active { transform: translateY(0); }
+    .meta { margin-top: 24px; color: #475569; font-size: 13px; font-weight: 500; }
   </style>
 </head>
 <body>
+  <div class="bg"></div>
   <div class="card">
-    <div class="header">
-      <div class="emoji">📋</div>
-      <h1>Mark Your Attendance</h1>
-      <span class="session-badge">📚 ${escapeHtml(sessionName)}</span>
-    </div>
-    <div class="warn">⚠️ Use your official institutional email only.</div>
-    <form id="form">
-      <input type="hidden" name="sessionCode" value="${escapeHtml(sessionCode)}">
-      <div><label>Full Name</label><input type="text" name="name" placeholder="e.g. Rahul Kumar" required autocomplete="name"></div>
-      <div><label>College Email</label><input type="email" name="email" placeholder="e.g. 2023ugcs045@college.edu" required autocomplete="email"></div>
-      <button type="submit" id="btn">✅ Submit Attendance</button>
-    </form>
-    <div class="result" id="result"></div>
+    <div class="icon-box">📱</div>
+    <h1>Official App Required</h1>
+    <p>To ensure secure geofencing and device-binding integrity, attendance for this session must be marked using the official application.</p>
+    
+    ${sessionName ? `<div class="session-info">📚 ${escapeHtml(sessionName)}</div>` : ''}
+    ${error ? `<div style="color:#f87171; margin-bottom:20px; font-weight:600;">⚠️ ${escapeHtml(error)}</div>` : ''}
+
+    <a href="${apkUrl}" class="btn">📥 Download Official APK (v2.6.0)</a>
+    
+    <div class="meta">Supported on Android 9.0+</div>
   </div>
-  <script>
-    document.getElementById('form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('btn');
-      const result = document.getElementById('result');
-      btn.disabled = true; btn.textContent = '⏳ Submitting...';
-      result.style.display = 'none';
-      const fd = new FormData(e.target);
-      const body = Object.fromEntries(fd);
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          body.lat = pos.coords.latitude;
-          body.lon = pos.coords.longitude;
-          await send(body);
-        }, async () => { await send(body); }, { timeout: 8000 });
-      } else { await send(body); }
-      async function send(d) {
-        try {
-          const r = await fetch('/submit', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(d) });
-          const data = await r.json();
-          result.style.display = 'block';
-          if (data.success) { result.className = 'result success'; result.textContent = '✅ ' + data.message; btn.textContent = 'Submitted!'; }
-          else { result.className = 'result error'; result.textContent = '❌ ' + data.error; btn.disabled = false; btn.textContent = '✅ Submit Attendance'; }
-        } catch { result.style.display = 'block'; result.className = 'result error'; result.textContent = '❌ Network error. Try again.'; btn.disabled = false; btn.textContent = '✅ Submit Attendance'; }
-      }
-    });
-  </script>
 </body>
 </html>`;
 }
