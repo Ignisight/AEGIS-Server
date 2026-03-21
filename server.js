@@ -786,6 +786,74 @@ app.post('/api/sessions/clear-all', async (req, res) => {
   res.json({ success: true, deleted: count });
 });
 
+// Helper: build a single xlsx buffer for a session
+async function getSessionXlsxBuffer(session, rows) {
+  const excelHeaders = ['Roll No', 'Name', 'Reg No', 'Email', 'Year', 'Program', 'Branch', 'Session', 'Date', 'Time'];
+  const colWidths = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }];
+  
+  const wb = XLSX.utils.book_new();
+  if (rows.length === 0) {
+    const ws = XLSX.utils.aoa_to_sheet([excelHeaders]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+  } else {
+    const excelData = rows.map(r => ({
+      'Roll No': r.rollNo || '-', 'Name': r.name,
+      'Reg No': r.regNo || '-', 'Email': r.email,
+      'Year': r.year || '-', 'Program': r.program || '-',
+      'Branch': r.branch || '-', 'Session': session.name,
+      'Date': r.date, 'Time': r.time,
+    }));
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    ws['!cols'] = colWidths;
+    XLSX.utils.book_append_sheet(wb, ws, session.name.slice(0, 31));
+  }
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+
+// Export multiple sessions — bundled in ZIP
+app.get('/api/export-multi', async (req, res) => {
+  const { ids } = req.query;
+  const sessionIds = ids ? ids.split(',').map(Number) : [];
+
+  if (sessionIds.length === 0) {
+    return res.status(400).json({ success: false, error: 'sessionIds are required for multi-export.' });
+  }
+
+  const sessions = await Session.find({ sessionId: { $in: sessionIds } });
+  if (sessions.length === 0) {
+    return res.status(404).json({ success: false, error: 'No sessions found.' });
+  }
+
+  // Determine ZIP filename
+  const uniqueNames = [...new Set(sessions.map(s => s.name))];
+  let zipName = 'attendance_sessions.zip';
+  if (uniqueNames.length === 1) {
+    const safeSubject = uniqueNames[0].replace(/[^a-zA-Z0-9]/g, '_');
+    zipName = `attendance_${safeSubject}_sessions.zip`;
+  } else {
+    zipName = `attendance_sessions_${Date.now()}.zip`;
+  }
+
+  const archiver = require('archiver');
+  const archive = archiver('zip', { zlib: { level: 6 } });
+
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+
+  archive.pipe(res);
+
+  for (const session of sessions) {
+    const rows = await Attendance.find({ sessionId: session.sessionId });
+    rows.sort((a, b) => (a.rollNo || '').localeCompare(b.rollNo || '', undefined, { numeric: true }));
+    
+    const buffer = await getSessionXlsxBuffer(session, rows);
+    const fileName = getSessionFilename(session); // attendance_<name>_<date>_<time>.xlsx
+    archive.append(buffer, { name: fileName });
+  }
+
+  await archive.finalize();
+});
+
 // Export single session
 app.get('/api/export', async (req, res) => {
   const { sessionId } = req.query;
@@ -802,26 +870,7 @@ app.get('/api/export', async (req, res) => {
   const rows = await Attendance.find({ sessionId: session.sessionId });
   rows.sort((a, b) => (a.rollNo || '').localeCompare(b.rollNo || '', undefined, { numeric: true }));
 
-  const excelHeaders = ['Roll No', 'Name', 'Reg No', 'Email', 'Year', 'Program', 'Branch', 'Session', 'Date', 'Time'];
-
-  const wb = XLSX.utils.book_new();
-  if (rows.length === 0) {
-    const ws = XLSX.utils.aoa_to_sheet([excelHeaders]);
-    XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
-  } else {
-    const excelData = rows.map(r => ({
-      'Roll No': r.rollNo || '-', 'Name': r.name,
-      'Reg No': r.regNo || '-', 'Email': r.email,
-      'Year': r.year || '-', 'Program': r.program || '-',
-      'Branch': r.branch || '-', 'Session': session.name,
-      'Date': r.date, 'Time': r.time,
-    }));
-    const ws = XLSX.utils.json_to_sheet(excelData);
-    ws['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }];
-    XLSX.utils.book_append_sheet(wb, ws, session.name.slice(0, 31));
-  }
-
-  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const buffer = await getSessionXlsxBuffer(session, rows);
   const safeFilename = getSessionFilename(session);
   
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
