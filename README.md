@@ -8,7 +8,7 @@ Backend REST API for the QR Attendance System. Handles teacher authentication, a
 ### 📥 Download the Official App (Required)
 The system now uses **App-Only Security**. Browser-based submission is disabled to ensure device binding and geofencing integrity. Students must use the official Android app.
 
-👉 [Download Official APK (v2.6.0)]((https://github.com/Ignisight/attendance-app))
+👉 [Download Official APK (v2.6.0)](https://github.com/Ignisight/attendance-app)
 
 ---
 
