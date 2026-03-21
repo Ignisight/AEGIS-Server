@@ -207,6 +207,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Lightweight keep-alive endpoint — no auth, no DB required
+// Used by GitHub Actions cron to prevent Render from sleeping
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: Math.floor(process.uptime()) });
+});
+
 const APP_SECRET_KEY = process.env.APP_SECRET_KEY;
 const LEGACY_APP_SECRET = process.env.LEGACY_APP_SECRET || '';  // old key — remove after all users update APK
 if (!APP_SECRET_KEY) {
