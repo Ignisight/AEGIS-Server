@@ -225,10 +225,59 @@ const DeviceSchema = new mongoose.Schema({
 });
 const Device = mongoose.model('Device', DeviceSchema);
 
+// FIX: Centralized input validation helpers (Issue #5)
+function isValidEmail(email) {
+  return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function isValidGPS(lat, lon) {
+  const latNum = Number(lat);
+  const lonNum = Number(lon);
+  return !isNaN(latNum) && !isNaN(lonNum) && latNum >= -90 && latNum <= 90 && lonNum >= -180 && lonNum <= 180;
+}
+
+// FIX: Per-identity rate limiter for /api/student/submit (Issue #4)
+const submitRateMap = new Map();
+const SUBMIT_RATE_LIMIT = 3;       // max attempts per window
+const SUBMIT_RATE_WINDOW_MS = 60 * 1000; // 60 second window
+
+function checkSubmitRateLimit(identity) {
+  const now = Date.now();
+  const entry = submitRateMap.get(identity);
+  if (!entry || now - entry.windowStart > SUBMIT_RATE_WINDOW_MS) {
+    submitRateMap.set(identity, { count: 1, windowStart: now });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= SUBMIT_RATE_LIMIT;
+}
+
+// Clean up stale rate-limit entries every 5 minutes to prevent memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of submitRateMap) {
+    if (now - val.windowStart > SUBMIT_RATE_WINDOW_MS) submitRateMap.delete(key);
+  }
+}, 5 * 60 * 1000);
+
 // ==========================================
 // MIDDLEWARE (SECURITY & PARSERS)
 // ==========================================
-app.use(cors());
+// FIX: CORS restricted to known origins instead of wide-open (Issue #3)
+app.use(cors({
+  origin: (origin, callback) => {
+    // Mobile apps (React Native) don't send Origin header — always allowed
+    if (!origin) return callback(null, true);
+    const allowed = [
+      process.env.RENDER_EXTERNAL_URL || 'https://attendance-server-ddgs.onrender.com',
+      'http://localhost:3000',
+      'http://localhost:8081',
+    ];
+    if (allowed.includes(origin)) return callback(null, true);
+    // FIX: Block unknown browser origins (defense-in-depth)
+    callback(new Error('CORS: Origin not allowed'));
+  },
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -240,9 +289,15 @@ app.get('/health', (req, res) => {
 
 const APP_SECRET_KEY = process.env.APP_SECRET_KEY;
 const LEGACY_APP_SECRET = process.env.LEGACY_APP_SECRET || '';  // old key — remove after all users update APK
+// FIX: ISO 8601 date string for legacy key retirement schedule (Issue #7)
+const LEGACY_SECRET_EXPIRES_AT = process.env.LEGACY_SECRET_EXPIRES_AT || '';
 if (!APP_SECRET_KEY) {
   console.error('❌  APP_SECRET_KEY environment variable is not set.');
   process.exit(1);
+}
+// FIX: Warn on startup if legacy secret has no retirement date (Issue #7)
+if (LEGACY_APP_SECRET && !LEGACY_SECRET_EXPIRES_AT) {
+  console.warn('  ⚠️  [WARNING] LEGACY_APP_SECRET is set with no expiry date. Set LEGACY_SECRET_EXPIRES_AT to schedule retirement.');
 }
 
 // App secret check (accepts both new key and legacy key during transition)
@@ -250,9 +305,16 @@ if (!APP_SECRET_KEY) {
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
     const clientKey = req.headers['x-app-secret'] || req.query.key || '';
-    if (clientKey !== APP_SECRET_KEY && clientKey !== LEGACY_APP_SECRET) {
-      return res.status(403).json({ success: false, error: 'Access Denied: Unofficial Client.' });
+    // Primary key — always valid
+    if (clientKey === APP_SECRET_KEY) return next();
+    // FIX: Legacy key now checked against LEGACY_SECRET_EXPIRES_AT (Issue #7)
+    if (LEGACY_APP_SECRET && clientKey === LEGACY_APP_SECRET) {
+      if (LEGACY_SECRET_EXPIRES_AT && Date.now() > new Date(LEGACY_SECRET_EXPIRES_AT).getTime()) {
+        return res.status(403).json({ success: false, error: 'Legacy API key has expired. Please update to the latest app version.' });
+      }
+      return next();
     }
+    return res.status(403).json({ success: false, error: 'Access Denied: Unofficial Client.' });
   }
   next();
 });
@@ -287,6 +349,9 @@ app.post('/api/register', async (req, res) => {
   const { email, password, name, college, department, allowedDomain } = req.body;
   if (!email || !password || !name)
     return res.json({ success: false, error: 'Name, email and password are required' });
+  // FIX: Validate email format before hitting database (Issue #5)
+  if (!isValidEmail(email))
+    return res.status(400).json({ success: false, error: 'Invalid email format.' });
 
   const emailLower = email.toLowerCase().trim();
   const existing = await Teacher.findOne({ email: emailLower });
@@ -503,6 +568,9 @@ app.post('/api/student/login', async (req, res) => {
   const { email, deviceId } = req.body;
   if (!email || !deviceId)
     return res.json({ success: false, error: 'Email and deviceId are required' });
+  // FIX: Validate student email format (Issue #5)
+  if (!isValidEmail(email))
+    return res.status(400).json({ success: false, error: 'Invalid email format.' });
 
   const emailLower = email.toLowerCase().trim();
 
@@ -543,6 +611,14 @@ app.post('/api/student/submit', async (req, res) => {
   const { email, deviceId, sessionCode, lat, lon } = req.body;
   if (!email || !deviceId || !sessionCode)
     return res.json({ success: false, error: 'Missing required fields' });
+  // FIX: Validate email format and GPS coordinate ranges (Issue #5)
+  if (!isValidEmail(email))
+    return res.status(400).json({ success: false, error: 'Invalid email format.' });
+  if (lat !== undefined && lon !== undefined && !isValidGPS(lat, lon))
+    return res.status(400).json({ success: false, error: 'Invalid GPS coordinates.' });
+  // FIX: Rate limit — max 3 submissions per 60s per device (Issue #4)
+  if (!checkSubmitRateLimit(deviceId))
+    return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait before trying again.' });
 
   const emailLower = email.toLowerCase().trim();
 
@@ -687,8 +763,23 @@ app.get('/api/responses', async (req, res) => {
   });
 });
 
+// FIX: Optional pagination with ?page=&limit= — backward compatible when omitted (Issue #6)
 app.get('/api/history', async (req, res) => {
-  const sessions = await Session.find().sort({ createdAt: -1 });
+  const page = parseInt(req.query.page) || 0;
+  const limit = parseInt(req.query.limit) || 0;
+
+  let query = Session.find().sort({ createdAt: -1 });
+  let total;
+
+  // FIX: Only paginate when params are explicitly provided — existing app gets full list (Issue #6)
+  if (page > 0 || limit > 0) {
+    const p = Math.max(1, page);
+    const l = Math.min(100, Math.max(1, limit || 20));
+    total = await Session.countDocuments();
+    query = query.skip((p - 1) * l).limit(l);
+  }
+
+  const sessions = await query;
   const result = await Promise.all(sessions.map(async s => ({
     id: s.sessionId,
     name: s.name,
@@ -697,7 +788,15 @@ app.get('/api/history', async (req, res) => {
     active: s.active,
     responseCount: await Attendance.countDocuments({ sessionId: s.sessionId }),
   })));
-  res.json({ success: true, sessions: result });
+
+  const response = { success: true, sessions: result };
+  // FIX: Include pagination metadata only when pagination is active (Issue #6)
+  if (total !== undefined) {
+    response.total = total;
+    response.page = Math.max(1, page);
+    response.limit = Math.min(100, Math.max(1, limit || 20));
+  }
+  res.json(response);
 });
 
 app.delete('/api/sessions/:id', async (req, res) => {
