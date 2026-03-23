@@ -5,6 +5,7 @@
 process.env.TZ = 'Asia/Kolkata';
 
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const path = require('path');
 const os = require('os');
@@ -35,7 +36,7 @@ const logger = winston.createLogger({
       )
     }),
     new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' })
+    // Optimized: Only store critical errors in the production file to save memory/storage
   ]
 });
 
@@ -51,6 +52,7 @@ if (!fsFilters.existsSync('./logs')) {
 
 const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
+app.use(compression());
 const PORT = process.env.PORT || 3000;
 
 // ==========================================
@@ -1071,6 +1073,8 @@ if (!ADMIN_USER || !ADMIN_PASSWORD) {
 app.get('/', (req, res) => res.redirect('/admin'));
 
 app.get('/admin', (req, res) => {
+  // Add lightweight cache header (1 hour) for the static asset to save bandwidth
+  res.setHeader('Cache-Control', 'public, max-age=3600');
   const adminPath = path.join(__dirname, 'public', 'admin.html');
   if (fs.existsSync(adminPath)) {
     res.sendFile(adminPath);
