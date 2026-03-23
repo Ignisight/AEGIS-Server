@@ -37,10 +37,10 @@
   <!-- SIDEBAR -->
   <aside id="sidebar" class="hidden w-80 h-full glass border-r border-white/5 flex flex-col z-40">
     <div class="p-8 border-b border-white/5"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl shadow-xl">📋</div><div><h1 class="text-xl font-bold tracking-tight">Nexisight</h1><p class="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em] mt-0.5">Admin Control</p></div></div></div>
-    <nav class="flex-1 p-6 space-y-3">
-      <button onclick="switchTab('monitoring')" id="tab-monitoring" class="sidebar-btn-base sidebar-btn-active"><span class="text-lg">📊</span><span class="font-bold">Monitoring</span></button>
-      <button onclick="switchTab('teachers')" id="tab-teachers" class="sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">👨‍🏫</span><span class="font-bold">Teachers</span></button>
-      <button onclick="switchTab('students')" id="tab-students" class="sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">🎓</span><span class="font-bold">Students</span></button>
+    <nav class="flex flex-col flex-1 p-6 space-y-4">
+      <button onclick="switchTab('monitoring')" id="tab-monitoring" class="w-full sidebar-btn-base sidebar-btn-active"><span class="text-lg">📊</span><span class="font-bold">Monitoring</span></button>
+      <button onclick="switchTab('teachers')" id="tab-teachers" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">👨‍🏫</span><span class="font-bold">Teachers</span></button>
+      <button onclick="switchTab('students')" id="tab-students" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">🎓</span><span class="font-bold">Students</span></button>
     </nav>
     <div class="p-6 border-t border-white/5"><button onclick="logout()" class="w-full sidebar-btn-base text-rose-400 hover:bg-rose-500/5 justify-center"><span class="text-lg">🚪</span><span class="font-bold">Log Out</span></button></div>
   </aside>
