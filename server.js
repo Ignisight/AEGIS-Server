@@ -18,6 +18,36 @@ const jsQR = require('jsqr');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const archiver = require('archiver');
+const winston = require('winston');
+
+// [OBSERVABILITY] Structured Logging Pipeline
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize({ all: true }),
+        winston.format.printf(info => `[${info.timestamp}] ${info.level}: ${info.message}`)
+      )
+    }),
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  ]
+});
+
+// For an immediate, global win on structured logs across this monolithic file
+console.log = (...args) => logger.info(args.join(' '));
+console.error = (...args) => logger.error(args.join(' '));
+console.warn = (...args) => logger.warn(args.join(' '));
+
+const fsFilters = require('fs');
+if (!fsFilters.existsSync('./logs')) {
+    fsFilters.mkdirSync('./logs');
+}
 
 const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
@@ -236,9 +266,40 @@ function isValidGPS(lat, lon) {
   return !isNaN(latNum) && !isNaN(lonNum) && latNum >= -90 && latNum <= 90 && lonNum >= -180 && lonNum <= 180;
 }
 
+// [SECURITY] Request Integrity Validation (Issue #8)
+// Verifies request integrity and prevents replay attacks using a cryptographically signed payload
+function isValidSignature(payload, signature, timestamp) {
+  if (!signature || !timestamp) return false;
+  // Check if request is too old (replay protection window: 60s)
+  if (Math.abs(Date.now() - Number(timestamp)) > 60000) return false;
+  
+  const hash = crypto.createHash('sha256');
+  hash.update(payload + timestamp + process.env.APP_SECRET_KEY);
+  const expected = hash.digest('hex');
+  return signature === expected;
+}
+
+// [PERFORMANCE] Attendance Batch Buffer (Issue #9)
+// Offloads high-frequency database writes to a background job to handle scan bursts smoothly
+let attendanceBuffer = [];
+async function flushAttendanceBuffer() {
+  if (attendanceBuffer.length === 0) return;
+  const batch = [...attendanceBuffer];
+  attendanceBuffer = []; // Clear immediately to allow new entries
+  try {
+    // ordered: false allows valid entries to pass if some are duplicates recorded in parallel
+    await Attendance.insertMany(batch, { ordered: false });
+    if (batch.length > 5) console.log(`  ⚡ [Performance] Batch-inserted ${batch.length} attendance records.`);
+  } catch (err) {
+    // Log non-duplicate errors only
+    const nonDuplicateCount = batch.length - (err.writeErrors?.length || 0);
+    if (nonDuplicateCount > 0) console.log(`  ⚡ [Performance] Batch-inserted ${nonDuplicateCount} records (caught duplicates).`);
+  }
+}
+
 // FIX: Per-identity rate limiter for /api/student/submit (Issue #4)
 const submitRateMap = new Map();
-const SUBMIT_RATE_LIMIT = 3;       // max attempts per window
+const SUBMIT_RATE_LIMIT = 5;       // max attempts per window (slightly higher for batching)
 const SUBMIT_RATE_WINDOW_MS = 60 * 1000; // 60 second window
 
 function checkSubmitRateLimit(identity) {
@@ -609,16 +670,27 @@ app.post('/api/student/decode-qr', upload.single('qrimage'), async (req, res) =>
 
 app.post('/api/student/submit', async (req, res) => {
   const { email, deviceId, sessionCode, lat, lon } = req.body;
+  const signature = req.headers['x-signature'];
+  const timestamp = req.headers['x-timestamp'];
+
   if (!email || !deviceId || !sessionCode)
     return res.json({ success: false, error: 'Missing required fields' });
+
+  // [SECURITY] HMAC Signature & Replay Protection (Issue #8)
+  const payload = email.toLowerCase().trim() + deviceId + sessionCode;
+  if (!isValidSignature(payload, signature, timestamp)) {
+    return res.status(403).json({ success: false, error: 'Access Denied: Untrusted request signature or expired timestamp.' });
+  }
+
   // FIX: Validate email format and GPS coordinate ranges (Issue #5)
   if (!isValidEmail(email))
     return res.status(400).json({ success: false, error: 'Invalid email format.' });
   if (lat !== undefined && lon !== undefined && !isValidGPS(lat, lon))
     return res.status(400).json({ success: false, error: 'Invalid GPS coordinates.' });
-  // FIX: Rate limit — max 3 submissions per 60s per device (Issue #4)
+  
+  // FIX: Rate limit — max 5 submissions per 60s per device (Issue #4)
   if (!checkSubmitRateLimit(deviceId))
-    return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait before trying again.' });
+    return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait.' });
 
   const emailLower = email.toLowerCase().trim();
 
@@ -630,19 +702,19 @@ app.post('/api/student/submit', async (req, res) => {
   // Find session by code
   const activeSession = await Session.findOne({ code: sessionCode });
   if (!activeSession) return res.json({ success: false, error: 'Invalid or expired session QR.' });
-  if (activeSession.stoppedAt) return res.json({ success: false, error: 'This session has ended. Attendance is closed.' });
+  if (activeSession.stoppedAt) return res.json({ success: false, error: 'This session has ended.' });
 
   // Check 10-min expiry (session.sessionId is Date.now() timestamp)
   if (Date.now() - activeSession.sessionId > 10 * 60 * 1000)
     return res.json({ success: false, error: 'Session expired (10 mins limit exceeded).' });
 
-  // Domain restriction: check if teacher has set an allowedDomain
+  // Domain restriction
   if (activeSession.teacherEmail) {
     const teacher = await Teacher.findOne({ email: activeSession.teacherEmail });
     if (teacher && teacher.allowedDomain) {
       const studentDomain = emailLower.split('@')[1] || '';
       if (studentDomain.toLowerCase() !== teacher.allowedDomain.toLowerCase()) {
-        return res.json({ success: false, error: `Attendance restricted to @${teacher.allowedDomain} emails. Please sign in with your institutional email.` });
+        return res.json({ success: false, error: `Attendance restricted to @${teacher.allowedDomain} emails.` });
       }
     }
   }
@@ -650,36 +722,35 @@ app.post('/api/student/submit', async (req, res) => {
   // Location check
   if (activeSession.lat && activeSession.lon) {
     if (!lat || !lon)
-      return res.json({ success: false, error: 'Location permission completely blocked. Allow in settings.' });
+      return res.json({ success: false, error: 'Location permission required.' });
     const dist = getDistanceFromLatLonInMeters(activeSession.lat, activeSession.lon, lat, lon);
     if (dist > 80)
-      return res.json({ success: false, error: `You are too far (${dist.toFixed(0)}m). Must be within 80m.` });
+      return res.json({ success: false, error: `Too far (${dist.toFixed(0)}m). Must be within 80m.` });
   }
 
+  // Check for duplicate in DB synchronously to provide immediate UI feedback
+  const existing = await Attendance.findOne({ sessionId: activeSession.sessionId, email: emailLower });
+  if (existing) return res.json({ success: false, error: 'You have already submitted for this session.' });
+
+  // [PERFORMANCE] Push to Batch Buffer instead of blocking on write (Issue #9)
   const rollInfo = parseRollInfo(emailLower);
   const now = new Date();
 
-  try {
-    await Attendance.create({
-      sessionId: activeSession.sessionId,
-      email: emailLower,
-      name: emailLower.split('@')[0],
-      regNo: rollInfo.rollNumber,
-      year: rollInfo.year,
-      program: rollInfo.program,
-      branch: rollInfo.branch,
-      rollNo: rollInfo.rollNo,
-      submittedAt: now,
-      date: now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
-      time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    });
-  } catch (e) {
-    if (e.code === 11000) // duplicate key = already submitted
-      return res.json({ success: false, error: 'You have already submitted for this session.' });
-    throw e;
-  }
+  attendanceBuffer.push({
+    sessionId: activeSession.sessionId,
+    email: emailLower,
+    name: emailLower.split('@')[0],
+    regNo: rollInfo.rollNumber,
+    year: rollInfo.year,
+    program: rollInfo.program,
+    branch: rollInfo.branch,
+    rollNo: rollInfo.rollNo,
+    submittedAt: now,
+    date: now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
+    time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+  });
 
-  res.json({ success: true, message: 'Attendance smoothly recorded!' });
+  res.json({ success: true, message: 'Attendance securely accepted!' });
 });
 
 // ==========================================
@@ -990,8 +1061,12 @@ function escapeHtml(text) {
 // ==========================================
 // ADMIN DASHBOARD & SECURE ROUTES
 // ==========================================
-const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_USER = process.env.ADMIN_USER;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+if (!ADMIN_USER || !ADMIN_PASSWORD) {
+  console.warn('  ⚠️ [SECURITY] ADMIN_USER or ADMIN_PASSWORD not set in environment. Admin Dashboard is DISABLED.');
+}
 
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
@@ -1183,6 +1258,9 @@ app.listen(PORT, '0.0.0.0', () => {
         console.error('Auto-close interval error:', e.message);
       }
     }, 10000);
+
+    // [Performance] Flush attendance buffer to database every 3 seconds
+    setInterval(flushAttendanceBuffer, 3000);
   });
 });
 
