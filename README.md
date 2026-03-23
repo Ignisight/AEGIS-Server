@@ -1,14 +1,14 @@
-# 📋 Attendance Server 
+# 📋 Nexisight Attendance Server (v2.7.0) 
 
 Backend REST API for the QR Attendance System. Handles teacher authentication, attendance sessions, student device binding, OTP password reset, and data export.
 
 **Live Server (App Gateway):** [attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com)  
 **Admin Dashboard:** [attendance-server-ddgs.onrender.com/admin](https://attendance-server-ddgs.onrender.com/admin)
 
-### 📥 Download the Official App (Required)
-The system now uses **App-Only Security**. Browser-based submission is disabled to ensure device binding and geofencing integrity. Students must use the official Android app.
+### 📥 Download the Official App (v2.7.0)
+The system now uses **App-Only Security**. Browser-based submission is disabled to ensure device binding and geofencing integrity. Students must use the latest Nexisight app.
 
-👉 [Download Official APK (v2.6.0)](https://github.com/Ignisight/attendance-app)
+👉 [Download Official APK (v2.7.0)](https://expo.dev/accounts/nexisights-organization/projects/attendance-app/builds/latest)
 
 ---
 
@@ -27,7 +27,9 @@ The system now uses **App-Only Security**. Browser-based submission is disabled 
 | **jsQR** | QR code detection & decoding from image buffers |
 | **xlsx** | Excel file generation for attendance exports |
 | **cors** | Cross-origin resource sharing middleware |
-| **crypto** | Cryptographically secure OTP generation |
+| **crypto** | HMAC-SHA256 signature validation & secure OTP |
+| **winston** | Structured JSON logging for observability |
+| **insertMany** | Batch buffer processing for scan bursts |
 | **Render** | Cloud deployment platform (free tier) |
 | **GitHub Actions** | Keep-alive automation (prevents Render sleep) |
 
@@ -133,8 +135,8 @@ attendance-server/
 | `GOOGLE_CLIENT_ID` | ❌ | Google OAuth client ID for Google Sign-In |
 | `PORT` | ❌ | Server port (default: `10000`, set by Render) |
 | `LEGACY_APP_SECRET` | ❌ | Old key for backward compatibility during APK transitions |
-| `ADMIN_USER` | ✅ | Username for the Admin Dashboard (default: `admin`) |
-| `ADMIN_PASSWORD` | ✅ | Password for the Admin Dashboard (default: `admin123`) |
+| `ADMIN_USER` | ✅ | Username for Admin Dashboard (Mandatory, no default) |
+| `ADMIN_PASSWORD` | ✅ | Password for Admin Dashboard (Mandatory, no default) |
 
 ---
 

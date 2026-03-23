@@ -1012,7 +1012,7 @@ function getStudentFormHTML(session, error = null) {
 <body><div class="box"><div class="icon">📋</div><div class="title">NIT Jamshedpur Attendance</div>
 <div class="msg">No active session right now. Please check with your teacher.</div></div></body></html>`;
   }
-  const apkUrl = "https://expo.dev/accounts/ignisight/projects/attendance-system/builds/5d2f4548-15b6-47e9-a055-1e10447c9310";
+  const apkUrl = "https://expo.dev/accounts/nexisight/projects/attendance-app/builds/latest";
 
   return `<!DOCTYPE html>
 <html lang="en">
