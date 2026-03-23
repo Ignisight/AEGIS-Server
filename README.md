@@ -1,4 +1,4 @@
-# 📋 Attendance Server — NIT Jamshedpur
+# 📋 Attendance Server 
 
 Backend REST API for the QR Attendance System. Handles teacher authentication, attendance sessions, student device binding, OTP password reset, and data export.
 
