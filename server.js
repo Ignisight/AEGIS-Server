@@ -1045,7 +1045,7 @@ function getStudentFormHTML(session, error = null) {
     ${sessionName ? `<div class="session-info">📚 ${escapeHtml(sessionName)}</div>` : ''}
     ${error ? `<div style="color:#f87171; margin-bottom:20px; font-weight:600;">⚠️ ${escapeHtml(error)}</div>` : ''}
 
-    <a href="${apkUrl}" class="btn">📥 Download Official APK (v2.6.0)</a>
+    <a href="${apkUrl}" class="btn">📥 Download Official APK (v2.7.0)</a>
     
     <div class="meta">Supported on Android 9.0+</div>
   </div>
