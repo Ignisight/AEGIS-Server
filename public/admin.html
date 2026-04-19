@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attendance Admin Dashboard</title>
+  <title>A.E.G.I.S — Admin Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
@@ -24,7 +24,7 @@
   <!-- LOGIN -->
   <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-[#020617] p-4 fade-in">
     <div class="glass w-full max-w-md p-10 rounded-[40px] shadow-2xl">
-      <div class="text-center mb-10"><div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-indigo-500/10 text-indigo-400 mb-6 shadow-xl border border-indigo-500/20 text-3xl">🔑</div><h2 class="text-3xl font-bold tracking-tight mb-2">Admin Portal</h2><p class="text-slate-500 font-medium italic">Secure NIT Jamshedpur Gateway</p></div>
+      <div class="text-center mb-10"><div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-indigo-500/10 text-indigo-400 mb-6 shadow-xl border border-indigo-500/20 text-3xl">🛡️</div><h2 class="text-3xl font-bold tracking-tight mb-2">A.E.G.I.S</h2><p class="text-slate-500 font-medium italic">Admin Control Panel</p></div>
       <form id="loginForm" class="space-y-6">
         <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 ml-1">Username</label><input type="text" id="usernameInput" required class="w-full bg-[#0f172a] border border-slate-800 text-white px-5 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium" placeholder="admin"></div>
         <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 ml-1">Password</label><input type="password" id="passwordInput" required class="w-full bg-[#0f172a] border border-slate-800 text-white px-5 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium" placeholder="••••••••"></div>
@@ -36,7 +36,7 @@
 
   <!-- SIDEBAR -->
   <aside id="sidebar" class="hidden w-80 h-full glass border-r border-white/5 flex flex-col z-40">
-    <div class="p-8 border-b border-white/5"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl shadow-xl">📋</div><div><h1 class="text-xl font-bold tracking-tight">Nexisight</h1><p class="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em] mt-0.5">Admin Control</p></div></div></div>
+    <div class="p-8 border-b border-white/5"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl shadow-xl">🛡️</div><div><h1 class="text-xl font-bold tracking-tight">A.E.G.I.S</h1><p class="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em] mt-0.5">Admin Control</p></div></div></div>
     <nav class="flex flex-col flex-1 p-6 space-y-4">
       <button onclick="switchTab('monitoring')" id="tab-monitoring" class="w-full sidebar-btn-base sidebar-btn-active"><span class="text-lg">📊</span><span class="font-bold">Monitoring</span></button>
       <button onclick="switchTab('teachers')" id="tab-teachers" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">👨‍🏫</span><span class="font-bold">Teachers</span></button>
