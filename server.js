@@ -1139,8 +1139,7 @@ if (!ADMIN_USER || !ADMIN_PASSWORD) {
 app.get('/', (req, res) => res.redirect('/admin'));
 
 app.get('/admin', (req, res) => {
-  // Add lightweight cache header (1 hour) for the static asset to save bandwidth
-  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Cache-Control', 'no-cache');
   const adminPath = path.join(__dirname, 'public', 'admin.html');
   if (fs.existsSync(adminPath)) {
     res.sendFile(adminPath);
