@@ -1,18 +1,19 @@
-name: Keep Alive
+name: Keep Alive — A.E.G.I.S Server
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Every 5 minutes
-  workflow_dispatch:        # Allow manual trigger
+    - cron: '*/5 * * * *'  # Every 5 minutes — prevents Render free tier sleep
+  workflow_dispatch:        # Allow manual trigger from GitHub Actions tab
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping server health endpoint
+      - name: Ping AEGIS Server health endpoint
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://attendance-server-ddgs.onrender.com/health)
-          echo "Health check status: $response"
+          SERVER_URL="${{ secrets.RENDER_URL || 'https://aegis-server.onrender.com' }}"
+          response=$(curl -s -o /dev/null -w "%{http_code}" "$SERVER_URL/health")
+          echo "Health check → $SERVER_URL/health → HTTP $response"
           if [ "$response" != "200" ]; then
-            echo "::warning::Server returned $response instead of 200"
+            echo "::warning::Server returned $response instead of 200. May be waking up."
           fi

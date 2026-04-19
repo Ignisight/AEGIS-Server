@@ -215,15 +215,17 @@ const OTP = mongoose.model('OTP', OTPSchema);
 
 // Attendance Sessions (retained 6 months)
 const SessionSchema = new mongoose.Schema({
-  sessionId: { type: Number, required: true, unique: true, index: true }, // Date.now() — preserved for compatibility
-  name: { type: String, required: true },
-  code: { type: String, required: true, unique: true, index: true },
-  teacherEmail: { type: String, default: '', lowercase: true },  // links session to teacher for domain validation
-  createdAt: { type: Date, default: Date.now },
-  active: { type: Boolean, default: true, index: true },
-  stoppedAt: { type: Date, default: null },
-  lat: { type: Number, default: null },
-  lon: { type: Number, default: null },
+  sessionId:    { type: Number,  required: true, unique: true, index: true },
+  name:         { type: String,  required: true },
+  code:         { type: String,  required: true, unique: true, index: true },
+  teacherEmail: { type: String,  default: '', lowercase: true },
+  createdAt:    { type: Date,    default: Date.now },
+  active:       { type: Boolean, default: true, index: true },
+  stoppedAt:    { type: Date,    default: null },
+  lat:          { type: Number,  default: null },
+  lon:          { type: Number,  default: null },
+  radius:       { type: Number,  default: 80   },  // geofence radius in metres
+  durationMs:   { type: Number,  default: null },  // null = use 10-min auto-close default
 });
 // TTL: auto-delete sessions older than 6 months
 SessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 183 * 24 * 60 * 60 });
@@ -256,6 +258,19 @@ const DeviceSchema = new mongoose.Schema({
   registeredAt: { type: Date, default: Date.now },
 });
 const Device = mongoose.model('Device', DeviceSchema);
+
+// Location Events (student entry/exit flips — retained 7 days)
+const LocationEventSchema = new mongoose.Schema({
+  email:       { type: String, required: true, lowercase: true, index: true },
+  deviceId:    { type: String, required: true },
+  sessionCode: { type: String, required: true, index: true },
+  eventType:   { type: String, enum: ['entry', 'exit'], required: true },
+  lat:         { type: Number },
+  lon:         { type: Number },
+  timestamp:   { type: Date, default: Date.now },
+});
+LocationEventSchema.index({ timestamp: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 }); // auto-delete after 7 days
+const LocationEvent = mongoose.model('LocationEvent', LocationEventSchema);
 
 // FIX: Centralized input validation helpers (Issue #5)
 function isValidEmail(email) {
@@ -652,7 +667,7 @@ app.post('/api/student/login', async (req, res) => {
 
   // New device — register it (email can have multiple devices)
   await Device.create({ email: emailLower, deviceId });
-  res.json({ success: true, message: 'Device securely registered!' });
+  res.json({ success: true, message: 'Device securely registered!', name: emailLower.split('@')[0], displayName: emailLower.split('@')[0] });
 });
 
 app.post('/api/student/decode-qr', upload.single('qrimage'), async (req, res) => {
@@ -752,7 +767,16 @@ app.post('/api/student/submit', async (req, res) => {
     time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
   });
 
-  res.json({ success: true, message: 'Attendance securely accepted!' });
+  // Return geofence parameters so the student app can start local tracking
+  const SESSION_DURATION_MS = activeSession.durationMs || 10 * 60 * 1000;
+  res.json({
+    success: true,
+    message: 'Attendance securely accepted!',
+    lat:              activeSession.lat,
+    lon:              activeSession.lon,
+    radius:           activeSession.radius || 80,
+    sessionDurationMs: SESSION_DURATION_MS,
+  });
 });
 
 // ==========================================
@@ -765,6 +789,7 @@ app.post('/api/start-session', async (req, res) => {
   if (!sessionName || !sessionName.trim())
     return res.json({ success: false, error: 'Session name is required' });
 
+  const { durationMs, radius } = req.body; // optional — teacher sets via app
   const id = Date.now();
   const code = generateSessionCode();
 
@@ -777,6 +802,8 @@ app.post('/api/start-session', async (req, res) => {
     active: true,
     lat: lat || null,
     lon: lon || null,
+    durationMs: durationMs || null,   // null = fallback to 10 min auto-close
+    radius:     radius     || 80,     // metres — default 80 m
   });
 
   const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://${getLocalIP()}:${PORT}`;
@@ -797,6 +824,45 @@ app.post('/api/sessions/:id/stop', async (req, res) => {
   session.stoppedAt = new Date();
   await session.save();
   res.json({ success: true, message: 'Session stopped' });
+});
+
+// ==========================================
+// STUDENT LOCATION EVENT (geofence flip — entry/exit)
+// Called ONLY when student crosses geofence boundary (not every minute)
+// ==========================================
+app.post('/api/student/location-event', async (req, res) => {
+  const { email, deviceId, sessionCode, eventType, lat, lon, timestamp } = req.body;
+
+  if (!email || !deviceId || !sessionCode || !eventType)
+    return res.status(400).json({ success: false, error: 'Missing required fields' });
+
+  if (!['entry', 'exit'].includes(eventType))
+    return res.status(400).json({ success: false, error: 'eventType must be entry or exit' });
+
+  const emailLower = email.toLowerCase().trim();
+
+  // Verify device is still bound
+  const device = await Device.findOne({ deviceId });
+  if (!device || device.email !== emailLower)
+    return res.status(403).json({ success: false, error: 'Unrecognized device.' });
+
+  // Verify session still exists
+  const session = await Session.findOne({ code: sessionCode });
+  if (!session)
+    return res.status(404).json({ success: false, error: 'Session not found.' });
+
+  await LocationEvent.create({
+    email:       emailLower,
+    deviceId,
+    sessionCode,
+    eventType,
+    lat:       lat  || null,
+    lon:       lon  || null,
+    timestamp: timestamp ? new Date(timestamp) : new Date(),
+  });
+
+  console.log(`[GEO] ${emailLower} → ${eventType.toUpperCase()} session=${sessionCode}`);
+  res.json({ success: true, recorded: eventType });
 });
 
 app.get('/api/status', async (req, res) => {
@@ -1235,16 +1301,16 @@ app.post('/admin-api/students/bulk-delete', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   const ip = getLocalIP();
   console.log('');
-  console.log('  ╔════════════════════════════════════════════╗');
-  console.log('  ║   📋  Attendance Server — NIT Jamshedpur  ║');
-  console.log('  ╠════════════════════════════════════════════╣');
-  console.log(`  ║  Local:    http://localhost:${PORT}           ║`);
-  console.log(`  ║  Network:  http://${ip}:${PORT}      ║`);
-  console.log('  ╠════════════════════════════════════════════╣');
-  console.log(`  ║  Email Domain: Any (Teacher controlled) ║`);
-  console.log('  ║  Storage:  MongoDB Atlas (Persistent) 🍃  ║');
-  console.log(`  ║  Google Sign-In: ${GOOGLE_CLIENT_ID ? '✅ Enabled' : '❌ Not set'}        ║`);
-  console.log('  ╚════════════════════════════════════════════╝');
+  console.log('  ╔══════════════════════════════════════════════╗');
+  console.log('  ║   🛡️   A.E.G.I.S — Attendance Server        ║');
+  console.log('  ║   Automated Entry Geo-fenced ID System       ║');
+  console.log('  ╠══════════════════════════════════════════════╣');
+  console.log(`  ║  Local:   http://localhost:${PORT}             ║`);
+  console.log(`  ║  Network: http://${ip}:${PORT}        ║`);
+  console.log('  ╠══════════════════════════════════════════════╣');
+  console.log(`  ║  Admin:   ${ADMIN_USER ? 'user=' + ADMIN_USER + ' pw=see env' : '⚠️  NOT SET'}          ║`);
+  console.log('  ║  Storage: MongoDB Atlas 🍃                   ║');
+  console.log('  ╚══════════════════════════════════════════════╝');
   console.log('');
 
   if (!process.env.RENDER_EXTERNAL_URL) {
@@ -1253,16 +1319,18 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // Connect to MongoDB in background (HTTP server already running)
   connectDB().then(() => {
-    // Auto-close sessions exceeding 10 minutes
+    // Auto-close sessions that exceed their set duration (or 10 min default)
     setInterval(async () => {
       try {
         const nowMs = Date.now();
         const expiredSessions = await Session.find({ active: true });
         for (const s of expiredSessions) {
-          if (nowMs - s.sessionId > 10 * 60 * 1000) {
+          const duration = s.durationMs || 10 * 60 * 1000; // teacher-set or 10 min default
+          if (nowMs - s.sessionId > duration) {
             s.active = false;
-            s.stoppedAt = new Date(s.sessionId + 10 * 60 * 1000);
+            s.stoppedAt = new Date(s.sessionId + duration);
             await s.save();
+            console.log(`[AUTO-CLOSE] Session ${s.name} closed after ${duration / 60000} min`);
           }
         }
       } catch (e) {

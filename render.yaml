@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: attendance-server
+    name: aegis-server
     runtime: node
     plan: free
     buildCommand: npm install
@@ -8,3 +8,21 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: MONGO_URI
+        sync: false          # Set manually in Render dashboard
+      - key: APP_SECRET_KEY
+        sync: false          # Must match mobile app's APP_SECRET_KEY
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: work.anuragkishan@gmail.com
+      - key: EMAIL_FROM_NAME
+        value: A.E.G.I.S Attendance
+      - key: LEGACY_APP_SECRET
+        sync: false
+      - key: LEGACY_SECRET_EXPIRES_AT
+        sync: false
