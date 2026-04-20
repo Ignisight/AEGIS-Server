@@ -427,24 +427,25 @@ app.use((req, res, next) => {
   next();
 });
 
-// DB ready guard — wait up to 45s if MongoDB is still connecting (Render cold-start)
+// DB ready guard — only block API and session routes, let UI load instantly
 app.use(async (req, res, next) => {
+  // If DB is connected, proceed instantly
   if (dbReady) return next();
 
+  // If it's a static file or the main admin UI, let it serve (React/Frontend will handle API errors)
+  if (!req.path.startsWith('/api/') && !req.path.startsWith('/admin-api/') && !req.path.startsWith('/s/')) {
+    return next();
+  }
+
   let attempts = 0;
-  // 90 attempts * 500ms = 45 seconds wait time
-  while (!dbReady && attempts < 90) {
+  // 30 attempts * 500ms = 15 seconds wait time (shorter to prevent proxy timeouts)
+  while (!dbReady && attempts < 30) {
     await new Promise(r => setTimeout(r, 500));
     attempts++;
   }
 
   if (!dbReady) {
-    // Return appropriate format based on request type
-    if (req.path.startsWith('/api/') || req.method === 'POST') {
-      return res.status(503).json({ success: false, error: 'Database connection is taking too long to wake up. Please try again.' });
-    } else {
-      return res.status(503).send('<h1>Server starting up...</h1><p>The database is waking up. Please refresh the page in a few seconds.</p>');
-    }
+    return res.status(503).json({ success: false, error: 'Database connection is initializing or broken. Please try again.' });
   }
   next();
 });
