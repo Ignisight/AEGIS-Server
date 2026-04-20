@@ -116,14 +116,6 @@
             </div>
           </div>
 
-          <!-- Students / Registered Teachers header (original) -->
-          <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
-            <div><h2 id="viewTitle" class="text-4xl font-extrabold tracking-tight mb-2">Teachers</h2><p id="viewSubtitle" class="text-slate-500 font-medium text-lg">Registered teacher accounts.</p></div>
-            <div class="flex gap-4">
-              <button id="massDeleteBtn" onclick="massDeleteStudents()" class="hidden bg-rose-500/10 text-rose-400 border border-rose-500/20 px-8 py-4 rounded-2xl font-bold text-sm hover:bg-rose-500/20 transition-all">Clear Bindings</button>
-              <button onclick="fetchData()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold text-sm shadow-xl shadow-indigo-500/20 transition-all">Refresh</button>
-            </div>
-          </div>
 
           <div id="studentFilters" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 py-2">
             <select id="filterDomain" onchange="applyStudentFilters()" class="bg-[#0f172a] border border-slate-800 text-white px-5 py-4 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none font-medium"><option value="">All Domains</option></select>
@@ -312,10 +304,8 @@
         document.getElementById('approveTeacherSection').classList.remove('hidden');
         document.getElementById('studentFilters').classList.add('hidden');
         document.getElementById('massDeleteBtn').classList.add('hidden');
-        document.getElementById('viewTitle').textContent = 'Registered Teachers';
-        document.getElementById('viewSubtitle').textContent = 'Teachers who have completed registration via the app.';
         renderApproved(data.approvedTeachers || [], allTeachers);
-        renderTeachers(allTeachers);
+
       } else {
         document.getElementById('approveTeacherSection').classList.add('hidden');
         document.getElementById('studentFilters').classList.remove('hidden');
