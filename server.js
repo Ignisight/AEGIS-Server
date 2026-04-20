@@ -1860,6 +1860,7 @@ async function runAttendanceEmailJob() {
 // START SERVER
 // ==========================================
 app.listen(PORT, '0.0.0.0', () => {
+  const ip = getLocalIP();
   console.log('  ║   🛡️   A.E.G.I.S — Attendance Server        ║');
   console.log('  ║   Automated Entry Geo-fenced ID System       ║');
   console.log('  ╠══════════════════════════════════════════════╣');
@@ -1883,25 +1884,21 @@ app.listen(PORT, '0.0.0.0', () => {
         const nowMs = Date.now();
         const expiredSessions = await Session.find({ active: true });
         for (const s of expiredSessions) {
-          const duration = s.durationMs || 10 * 60 * 1000; // teacher-set or 10 min default
+          const duration = s.durationMs || 10 * 60 * 1000;
           if (nowMs - s.sessionId > duration) {
             s.active = false;
             s.stoppedAt = new Date(s.sessionId + duration);
             await s.save();
-            console.log(`[AUTO-CLOSE] Session ${s.name} closed after ${duration / 60000} min`);
+            console.log(`[AUTO-CLOSE] Session ${s.name} closed`);
           }
         }
       } catch (e) {
-        console.error('Auto-close interval error:', e.message);
+        console.error('Auto-close error:', e.message);
       }
     }, 10000);
 
-    // [Performance] Flush attendance buffer to database every 3 seconds
     setInterval(flushAttendanceBuffer, 3000);
-
-    // [Background Jobs] Run email evaluation every 6 hours
     setInterval(runAttendanceEmailJob, 6 * 60 * 60 * 1000);
-    // Also run once 2 minutes after server boot to catch up logs
     setTimeout(runAttendanceEmailJob, 2 * 60 * 1000);
   });
 });
