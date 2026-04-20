@@ -267,6 +267,14 @@ const ApprovedTeacherSchema = new mongoose.Schema({
 });
 const ApprovedTeacher = mongoose.model('ApprovedTeacher', ApprovedTeacherSchema);
 
+// Departments
+const DepartmentSchema = new mongoose.Schema({
+  deptId:    { type: String, required: true, unique: true, uppercase: true, index: true }, // e.g. "CSE"
+  name:      { type: String, required: true },  // e.g. "Computer Science & Engineering"
+  createdAt: { type: Date, default: Date.now },
+});
+const Department = mongoose.model('Department', DepartmentSchema);
+
 // Courses (master list of subjects)
 const CourseSchema = new mongoose.Schema({
   courseId:   { type: String, required: true, unique: true, index: true }, // e.g. "CS301"
@@ -1432,6 +1440,39 @@ app.get('/admin-api/export/:id', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${getSessionFilename(session)}"`);
     res.end(buffer);
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// ── Admin: Departments ────────────────────────────────────────────────────────
+app.get('/admin-api/departments', async (req, res) => {
+  try {
+    const depts = await Department.find().sort({ name: 1 });
+    res.json({ success: true, departments: depts });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.post('/admin-api/departments', async (req, res) => {
+  try {
+    const { deptId, name } = req.body;
+    if (!deptId || !name) return res.json({ success: false, error: 'Department ID and name are required' });
+    const id = deptId.trim().toUpperCase();
+    const existing = await Department.findOne({ deptId: id });
+    if (existing) return res.json({ success: false, error: 'Department ID already exists' });
+    const dept = await Department.create({ deptId: id, name: name.trim() });
+    res.json({ success: true, department: dept });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.delete('/admin-api/departments/:id', async (req, res) => {
+  try {
+    const deptId = req.params.id.toUpperCase();
+    // Remove dept + all its courses + assignments
+    const courses = await Course.find({ department: deptId });
+    const courseIds = courses.map(c => c.courseId);
+    await TeacherCourse.deleteMany({ courseId: { $in: courseIds } });
+    await Course.deleteMany({ department: deptId });
+    await Department.deleteOne({ deptId });
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
 // ── Admin: Courses ────────────────────────────────────────────────────────────

@@ -39,6 +39,7 @@
     <div class="p-8 border-b border-white/5"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl shadow-xl">🛡️</div><div><h1 class="text-xl font-bold tracking-tight">A.E.G.I.S</h1><p class="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em] mt-0.5">Admin Control</p></div></div></div>
     <nav class="flex flex-col flex-1 p-6 space-y-4">
       <button onclick="switchTab('monitoring')" id="tab-monitoring" class="w-full sidebar-btn-base sidebar-btn-active"><span class="text-lg">📊</span><span class="font-bold">Monitoring</span></button>
+      <button onclick="switchTab('departments')" id="tab-departments" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">🏛️</span><span class="font-bold">Departments</span></button>
       <button onclick="switchTab('courses')" id="tab-courses" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">📚</span><span class="font-bold">Courses</span></button>
       <button onclick="switchTab('assignments')" id="tab-assignments" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">🔗</span><span class="font-bold">Assignments</span></button>
       <button onclick="switchTab('teachers')" id="tab-teachers" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">👨‍🏫</span><span class="font-bold">Teachers</span></button>
@@ -141,29 +142,63 @@
     </div>
   </main>
 
+  <!-- DEPARTMENTS PANEL -->
+  <div id="departmentsPanel" class="hidden flex-1 flex flex-col overflow-hidden h-full">
+    <div class="flex-1 overflow-y-auto p-8 lg:p-14">
+      <div class="max-w-[860px] mx-auto space-y-10">
+        <div>
+          <h2 class="text-4xl font-extrabold tracking-tight mb-2">Departments</h2>
+          <p class="text-slate-500 font-medium text-lg">Add the departments of your institution. Courses are then added under each department.</p>
+        </div>
+        <div class="glass p-8 rounded-[32px] space-y-5">
+          <h3 class="text-lg font-bold text-purple-400">➕ Add Department</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Department Code *</label><input id="d-id" placeholder="e.g. CSE" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 font-medium"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Full Name *</label><input id="d-name" placeholder="e.g. Computer Science & Engineering" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 font-medium"></div>
+          </div>
+          <div class="flex items-center gap-4">
+            <button onclick="addDept()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-8 py-3 rounded-2xl transition-all">Add Department</button>
+            <span id="d-msg" class="text-sm font-bold"></span>
+          </div>
+        </div>
+        <div class="glass rounded-[32px] overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead class="bg-purple-500/5 border-b border-white/5 text-slate-500 text-[10px] uppercase font-black tracking-[0.2em]">
+                <tr><th class="px-8 py-5">Code</th><th class="px-8 py-5">Department Name</th><th class="px-8 py-5 text-right">Action</th></tr>
+              </thead>
+              <tbody id="deptsBody" class="divide-y divide-white/5"></tbody>
+            </table>
+          </div>
+          <div id="deptsEmpty" class="hidden py-24 text-center text-slate-500 font-bold"><div class="text-5xl mb-4 opacity-30">🏛️</div>No departments added yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- COURSES PANEL -->
   <div id="coursesPanel" class="hidden flex-1 flex flex-col overflow-hidden h-full">
     <div class="flex-1 overflow-y-auto p-8 lg:p-14">
       <div class="max-w-[960px] mx-auto space-y-10">
         <div>
           <h2 class="text-4xl font-extrabold tracking-tight mb-2">Courses</h2>
-          <p class="text-slate-500 font-medium text-lg">Add and manage subjects taught at the institution.</p>
+          <p class="text-slate-500 font-medium text-lg">Add subjects under each department.</p>
         </div>
-        <!-- Add Course Form -->
         <div class="glass p-8 rounded-[32px] space-y-6">
           <h3 class="text-lg font-bold text-indigo-400">➕ Add New Course</h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Course ID *</label><input id="c-id" placeholder="e.g. CS301" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"></div>
             <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Subject Name *</label><input id="c-name" placeholder="e.g. Data Structures" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Department *</label>
+              <select id="c-dept" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"><option value="">— Select Department —</option></select>
+            </div>
             <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Semester</label><input id="c-sem" placeholder="e.g. 5" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"></div>
-            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Department</label><input id="c-dept" placeholder="e.g. CSE" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"></div>
           </div>
           <div class="flex items-center gap-4">
             <button onclick="addCourse()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl transition-all">Add Course</button>
             <span id="c-msg" class="text-sm font-bold"></span>
           </div>
         </div>
-        <!-- Course List -->
         <div class="glass rounded-[32px] overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left">
@@ -221,6 +256,7 @@
 
   <script>
     let authUser = localStorage.getItem('adminUser') || '', authPass = localStorage.getItem('adminPass') || '', currentTab = 'monitoring', branchChart, hourlyChart, allTeachers = [], allStudents = [], renderedStudents = [], allCourses = [], allAssignments = [];
+    const H = () => ({ 'Content-Type':'application/json','x-admin-user':authUser,'x-admin-password':authPass });
     if (authUser && authPass) { showDashboard(); fetchStats(); }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -243,7 +279,7 @@
     }
     function logout() { localStorage.clear(); location.reload(); }
 
-    const ALL_TABS = ['monitoring','courses','assignments','teachers','students'];
+    const ALL_TABS = ['monitoring','departments','courses','assignments','teachers','students'];
     function switchTab(tab) {
       currentTab = tab;
       ALL_TABS.forEach(t => {
@@ -253,12 +289,13 @@
       });
       document.getElementById('monitoringView').classList.toggle('hidden', tab !== 'monitoring');
       document.getElementById('tableView').classList.toggle('hidden', !['teachers','students'].includes(tab));
+      document.getElementById('departmentsPanel').classList.toggle('hidden', tab !== 'departments');
       document.getElementById('coursesPanel').classList.toggle('hidden', tab !== 'courses');
       document.getElementById('assignmentsPanel').classList.toggle('hidden', tab !== 'assignments');
-      // Hide main dashboard wrapper when on courses/assignments
-      document.getElementById('dashboard').classList.toggle('hidden', ['courses','assignments'].includes(tab));
+      document.getElementById('dashboard').classList.toggle('hidden', ['departments','courses','assignments'].includes(tab));
       if (tab === 'monitoring') fetchStats();
       else if (tab === 'teachers' || tab === 'students') fetchData();
+      else if (tab === 'departments') fetchDepartments();
       else if (tab === 'courses') fetchCourses();
       else if (tab === 'assignments') fetchAssignments();
     }
@@ -392,37 +429,78 @@
     async function massDeleteStudents() { if (renderedStudents.length && confirm(`Wipe device records for ${renderedStudents.length} students?`)) { const res = await fetch('/admin-api/students/bulk-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-user': authUser, 'x-admin-password': authPass }, body: JSON.stringify({ emails: renderedStudents.map(st => st.email) }) }); (await res.json()).success ? fetchData() : alert('Failed'); } }
     async function deleteX(t, e) { if (confirm(`Confirm ${t} deletion?`)) { await fetch(`/admin-api/${t}/${encodeURIComponent(e)}`, { method:'DELETE', headers:{'x-admin-user':authUser, 'x-admin-password':authPass} }); fetchData(); } }
 
-    // ── Courses ──────────────────────────────────────────────────────────────
-    const H = (s) => ({ 'Content-Type':'application/json','x-admin-user':authUser,'x-admin-password':authPass });
-    async function fetchCourses() {
-      const res = await fetch('/admin-api/courses', { headers: H() });
+    // ── Departments ───────────────────────────────────────────────────────────
+    let allDepts = [];
+    async function fetchDepartments() {
+      const res = await fetch('/admin-api/departments', { headers: H() });
       const data = await res.json();
-      allCourses = data.courses || [];
+      allDepts = data.departments || [];
+      renderDepts();
+    }
+    function renderDepts() {
+      const b = document.getElementById('deptsBody'), e = document.getElementById('deptsEmpty');
+      if (!allDepts.length) { b.innerHTML=''; e.classList.remove('hidden'); return; }
+      e.classList.add('hidden');
+      b.innerHTML = allDepts.map(d => `
+        <tr class="hover:bg-white/[0.02] transition-colors">
+          <td class="px-8 py-6"><span class="px-3 py-1 rounded-xl bg-purple-500/10 text-purple-400 font-black text-xs tracking-widest">${d.deptId}</span></td>
+          <td class="px-8 py-6 font-bold text-slate-200">${d.name}</td>
+          <td class="px-8 py-6 text-right"><button onclick="deleteDept('${d.deptId}')" class="text-rose-400 font-black hover:underline">Delete</button></td>
+        </tr>`).join('');
+    }
+    async function addDept() {
+      const deptId=document.getElementById('d-id').value.trim(), name=document.getElementById('d-name').value.trim();
+      const msg=document.getElementById('d-msg');
+      if (!deptId||!name){msg.textContent='Both fields required';msg.className='text-sm font-bold text-rose-400';return;}
+      const res=await fetch('/admin-api/departments',{method:'POST',headers:H(),body:JSON.stringify({deptId,name})});
+      const data=await res.json();
+      if(data.success){msg.textContent='✅ Department added!';msg.className='text-sm font-bold text-emerald-400';document.getElementById('d-id').value='';document.getElementById('d-name').value='';fetchDepartments();}
+      else{msg.textContent='❌ '+data.error;msg.className='text-sm font-bold text-rose-400';}
+      setTimeout(()=>msg.textContent='',3000);
+    }
+    async function deleteDept(id){
+      if(!confirm(`Delete department ${id} and ALL its courses and assignments?`))return;
+      await fetch(`/admin-api/departments/${encodeURIComponent(id)}`,{method:'DELETE',headers:H()});
+      fetchDepartments();
+    }
+
+    // ── Courses ──────────────────────────────────────────────────────────────
+    async function fetchCourses() {
+      // Populate dept dropdown first
+      const [dRes, cRes] = await Promise.all([
+        fetch('/admin-api/departments', { headers: H() }).then(r=>r.json()),
+        fetch('/admin-api/courses', { headers: H() }).then(r=>r.json()),
+      ]);
+      allDepts = dRes.departments || [];
+      const dd = document.getElementById('c-dept');
+      dd.innerHTML = '<option value="">— Select Department —</option>' + allDepts.map(d=>`<option value="${d.deptId}">${d.name} [${d.deptId}]</option>`).join('');
+      allCourses = cRes.courses || [];
       renderCourses();
     }
     function renderCourses() {
-      const b = document.getElementById('coursesBody');
-      const e = document.getElementById('coursesEmpty');
+      const b = document.getElementById('coursesBody'), e = document.getElementById('coursesEmpty');
       if (!allCourses.length) { b.innerHTML=''; e.classList.remove('hidden'); return; }
       e.classList.add('hidden');
+      // Build dept name map
+      const deptMap={}; allDepts.forEach(d=>deptMap[d.deptId]=d.name);
       b.innerHTML = allCourses.map(c => `
         <tr class="hover:bg-white/[0.02] transition-colors">
           <td class="px-8 py-6"><span class="px-3 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 font-black text-xs tracking-widest">${c.courseId}</span></td>
           <td class="px-8 py-6 font-bold text-slate-200">${c.name}</td>
-          <td class="px-8 py-6 text-slate-400 font-bold">${c.semester || '—'}</td>
-          <td class="px-8 py-6 text-slate-400 font-bold">${c.department || '—'}</td>
+          <td class="px-8 py-6 text-slate-400 font-bold">${c.semester||'—'}</td>
+          <td class="px-8 py-6 text-slate-400 font-bold">${deptMap[c.department]||c.department||'—'}</td>
           <td class="px-8 py-6 text-right"><button onclick="deleteCourse('${c.courseId}')" class="text-rose-400 font-black hover:underline">Delete</button></td>
         </tr>`).join('');
     }
     async function addCourse() {
       const courseId=document.getElementById('c-id').value.trim(), name=document.getElementById('c-name').value.trim(),
-            semester=document.getElementById('c-sem').value.trim(), department=document.getElementById('c-dept').value.trim();
+            semester=document.getElementById('c-sem').value.trim(), department=document.getElementById('c-dept').value;
       const msg = document.getElementById('c-msg');
-      if (!courseId || !name) { msg.textContent='Course ID and Name are required'; msg.className='text-sm font-bold text-rose-400'; return; }
-      const res = await fetch('/admin-api/courses', { method:'POST', headers:H(), body:JSON.stringify({courseId,name,semester,department}) });
-      const data = await res.json();
-      if (data.success) { msg.textContent='✅ Course added!'; msg.className='text-sm font-bold text-emerald-400'; ['c-id','c-name','c-sem','c-dept'].forEach(id=>document.getElementById(id).value=''); fetchCourses(); populateAssignmentDropdowns(); }
-      else { msg.textContent='❌ '+data.error; msg.className='text-sm font-bold text-rose-400'; }
+      if (!courseId||!name||!department){msg.textContent='Course ID, Name and Department are required';msg.className='text-sm font-bold text-rose-400';return;}
+      const res=await fetch('/admin-api/courses',{method:'POST',headers:H(),body:JSON.stringify({courseId,name,semester,department})});
+      const data=await res.json();
+      if(data.success){msg.textContent='✅ Course added!';msg.className='text-sm font-bold text-emerald-400';['c-id','c-name','c-sem'].forEach(id=>document.getElementById(id).value='');document.getElementById('c-dept').value='';fetchCourses();populateAssignmentDropdowns();}
+      else{msg.textContent='❌ '+data.error;msg.className='text-sm font-bold text-rose-400';}
       setTimeout(()=>msg.textContent='',3000);
     }
     async function deleteCourse(id) {
