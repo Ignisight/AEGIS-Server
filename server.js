@@ -259,6 +259,14 @@ const DeviceSchema = new mongoose.Schema({
 });
 const Device = mongoose.model('Device', DeviceSchema);
 
+// Admin-approved teacher whitelist
+const ApprovedTeacherSchema = new mongoose.Schema({
+  email:     { type: String, required: true, unique: true, lowercase: true, index: true },
+  name:      { type: String, required: true },
+  addedAt:   { type: Date, default: Date.now },
+});
+const ApprovedTeacher = mongoose.model('ApprovedTeacher', ApprovedTeacherSchema);
+
 // Courses (master list of subjects)
 const CourseSchema = new mongoose.Schema({
   courseId:   { type: String, required: true, unique: true, index: true }, // e.g. "CS301"
@@ -446,11 +454,17 @@ app.post('/api/register', async (req, res) => {
   const { email, password, name, college, department, allowedDomain } = req.body;
   if (!email || !password || !name)
     return res.json({ success: false, error: 'Name, email and password are required' });
-  // FIX: Validate email format before hitting database (Issue #5)
   if (!isValidEmail(email))
     return res.status(400).json({ success: false, error: 'Invalid email format.' });
 
   const emailLower = email.toLowerCase().trim();
+
+  // ── ADMIN WHITELIST CHECK ──────────────────────────────────────────────────
+  // Only emails pre-approved by admin are allowed to register as teachers
+  const approved = await ApprovedTeacher.findOne({ email: emailLower });
+  if (!approved)
+    return res.json({ success: false, error: 'Your email is not approved for teacher registration. Please contact the administrator.' });
+
   const existing = await Teacher.findOne({ email: emailLower });
   if (existing)
     return res.json({ success: false, error: 'An account with this email already exists' });
@@ -459,17 +473,16 @@ app.post('/api/register', async (req, res) => {
     return res.json({ success: false, error: 'Password must be at least 4 characters' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  // Keep domain optional: if not provided, leave empty to allow all student domains
   const finalDomain = (allowedDomain && allowedDomain.trim()) ? allowedDomain.replace(/@/g, '').trim().toLowerCase() : '';
 
   await Teacher.create({
-    id: Date.now(),
-    email: emailLower,
-    name: name.trim(),
-    college: (college || '').trim(),
-    department: (department || '').trim(),
+    id:            Date.now(),
+    email:         emailLower,
+    name:          approved.name || name.trim(), // use admin-set name as canonical
+    college:       (college || '').trim(),
+    department:    (department || '').trim(),
     allowedDomain: finalDomain,
-    password: hashedPassword,
+    password:      hashedPassword,
   });
   res.json({ success: true, message: 'Account created! You can now login.' });
 });
@@ -1189,9 +1202,10 @@ app.use('/admin-api', (req, res, next) => {
 
 app.get('/admin-api/data', async (req, res) => {
   try {
-    const teachers = await Teacher.find({}, '-password').sort({ name: 1 });
-    const students = await Device.find({}).sort({ registeredAt: -1 });
-    res.json({ success: true, teachers, students });
+    const teachers         = await Teacher.find({}, '-password').sort({ name: 1 });
+    const students         = await Device.find({}).sort({ registeredAt: -1 });
+    const approvedTeachers = await ApprovedTeacher.find().sort({ name: 1 });
+    res.json({ success: true, teachers, students, approvedTeachers });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }
@@ -1283,13 +1297,45 @@ app.delete('/admin-api/teacher/:email', async (req, res) => {
   try {
     const email = req.params.email.toLowerCase();
     await Teacher.deleteOne({ email });
-    // Also mark their active sessions as stopped
     await Session.updateMany({ teacherEmail: email, active: true }, { active: false, stoppedAt: new Date() });
     res.json({ success: true, message: 'Teacher deleted' });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }
 });
+
+// ── Approved Teacher Whitelist ─────────────────────────────────────────────────
+app.get('/admin-api/approved-teachers', async (req, res) => {
+  try {
+    const list = await ApprovedTeacher.find().sort({ name: 1 });
+    res.json({ success: true, list });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.post('/admin-api/approved-teachers', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    if (!email || !name) return res.json({ success: false, error: 'Name and email are required' });
+    if (!isValidEmail(email)) return res.json({ success: false, error: 'Invalid email format' });
+    const emailLower = email.toLowerCase().trim();
+    const existing = await ApprovedTeacher.findOne({ email: emailLower });
+    if (existing) return res.json({ success: false, error: 'This email is already approved' });
+    await ApprovedTeacher.create({ email: emailLower, name: name.trim() });
+    res.json({ success: true, message: `${name.trim()} approved successfully` });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.delete('/admin-api/approved-teachers/:email', async (req, res) => {
+  try {
+    const email = req.params.email.toLowerCase();
+    // Remove from whitelist — also remove teacher account if exists
+    await ApprovedTeacher.deleteOne({ email });
+    await Teacher.deleteOne({ email });
+    await Session.updateMany({ teacherEmail: email, active: true }, { active: false, stoppedAt: new Date() });
+    res.json({ success: true, message: 'Teacher access revoked' });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
 
 app.delete('/admin-api/student/:email', async (req, res) => {
   try {

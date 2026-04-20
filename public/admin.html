@@ -82,11 +82,46 @@
 
         <!-- TABLE -->
         <div id="tableView" class="hidden fade-in space-y-10">
-           <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
-            <div><h2 id="viewTitle" class="text-4xl font-extrabold tracking-tight mb-2">Teachers</h2><p id="viewSubtitle" class="text-slate-500 font-medium text-lg">Manage faculty access and system permissions.</p></div>
+          <!-- Approve Teacher Form -->
+          <div id="approveTeacherSection" class="hidden">
+            <h2 class="text-4xl font-extrabold tracking-tight mb-2">Teachers</h2>
+            <p class="text-slate-500 font-medium text-lg mb-8">Only admin-approved faculty can register and use the app.</p>
+            <!-- Add to whitelist -->
+            <div class="glass p-8 rounded-[32px] space-y-5 mb-8">
+              <h3 class="text-lg font-bold text-emerald-400">✅ Approve New Teacher</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Professor Name *</label><input id="t-name" placeholder="e.g. Dr. Ramesh Kumar" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-medium"></div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Email Address *</label><input id="t-email" placeholder="e.g. ramesh@nitjsr.ac.in" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-medium"></div>
+              </div>
+              <div class="flex items-center gap-4">
+                <button onclick="approveTeacher()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-2xl transition-all">Approve Teacher</button>
+                <span id="t-msg" class="text-sm font-bold"></span>
+              </div>
+            </div>
+            <!-- Approved list -->
+            <div class="glass rounded-[32px] overflow-hidden mb-10">
+              <div class="px-8 py-5 border-b border-white/5 flex items-center justify-between">
+                <h3 class="font-bold text-slate-300">Approved Teachers</h3>
+                <span class="text-xs text-slate-500 font-bold uppercase tracking-widest">Admin Whitelist</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                  <thead class="bg-emerald-500/5 border-b border-white/5 text-slate-500 text-[10px] uppercase font-black tracking-[0.2em]">
+                    <tr><th class="px-8 py-5">Professor Name</th><th class="px-8 py-5">Email</th><th class="px-8 py-5">Status</th><th class="px-8 py-5 text-right">Action</th></tr>
+                  </thead>
+                  <tbody id="approvedBody" class="divide-y divide-white/5"></tbody>
+                </table>
+              </div>
+              <div id="approvedEmpty" class="hidden py-16 text-center text-slate-500 font-bold"><div class="text-4xl mb-3 opacity-30">🔒</div>No approved teachers yet.</div>
+            </div>
+          </div>
+
+          <!-- Students / Registered Teachers header (original) -->
+          <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
+            <div><h2 id="viewTitle" class="text-4xl font-extrabold tracking-tight mb-2">Teachers</h2><p id="viewSubtitle" class="text-slate-500 font-medium text-lg">Registered teacher accounts.</p></div>
             <div class="flex gap-4">
               <button id="massDeleteBtn" onclick="massDeleteStudents()" class="hidden bg-rose-500/10 text-rose-400 border border-rose-500/20 px-8 py-4 rounded-2xl font-bold text-sm hover:bg-rose-500/20 transition-all">Clear Bindings</button>
-              <button onclick="fetchData()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold text-sm shadow-xl shadow-indigo-500/20 transition-all">Refresh Grid</button>
+              <button onclick="fetchData()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold text-sm shadow-xl shadow-indigo-500/20 transition-all">Refresh</button>
             </div>
           </div>
 
@@ -274,15 +309,62 @@
       allTeachers = data.teachers || [];
       allStudents = (data.students || []).map(s => { const parts = s.email.split('@'), local = parts[0], match = local.match(/^(\d{4})(ug|pg)([a-z]+)(\d+)$/i); return { ...s, domain: parts[1]||'?', year: match?.[1]||'-', program: match?.[2]?.toUpperCase()||'-', branch: match?.[3]?.toUpperCase()||'-' }; });
       if (currentTab === 'teachers') {
+        document.getElementById('approveTeacherSection').classList.remove('hidden');
         document.getElementById('studentFilters').classList.add('hidden');
         document.getElementById('massDeleteBtn').classList.add('hidden');
+        document.getElementById('viewTitle').textContent = 'Registered Teachers';
+        document.getElementById('viewSubtitle').textContent = 'Teachers who have completed registration via the app.';
+        renderApproved(data.approvedTeachers || [], allTeachers);
         renderTeachers(allTeachers);
       } else {
+        document.getElementById('approveTeacherSection').classList.add('hidden');
         document.getElementById('studentFilters').classList.remove('hidden');
         document.getElementById('massDeleteBtn').classList.remove('hidden');
         populateFilters(); applyStudentFilters();
       }
     }
+
+    function renderApproved(approvedList, registeredTeachers) {
+      const registeredEmails = new Set(registeredTeachers.map(t => t.email));
+      const b = document.getElementById('approvedBody');
+      const e = document.getElementById('approvedEmpty');
+      if (!approvedList.length) { b.innerHTML = ''; e.classList.remove('hidden'); return; }
+      e.classList.add('hidden');
+      b.innerHTML = approvedList.map(a => {
+        const isRegistered = registeredEmails.has(a.email);
+        const badge = isRegistered
+          ? `<span class="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest">✓ Registered</span>`
+          : `<span class="px-3 py-1 rounded-xl bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest">⏳ Pending</span>`;
+        return `<tr class="hover:bg-white/[0.02] transition-colors">
+          <td class="px-8 py-6 font-bold text-slate-200">${a.name}</td>
+          <td class="px-8 py-6 text-slate-400 font-bold">${a.email}</td>
+          <td class="px-8 py-6">${badge}</td>
+          <td class="px-8 py-6 text-right"><button onclick="revokeTeacher('${a.email}')" class="text-rose-400 font-black hover:underline">Revoke</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function approveTeacher() {
+      const name = document.getElementById('t-name').value.trim();
+      const email = document.getElementById('t-email').value.trim();
+      const msg = document.getElementById('t-msg');
+      if (!name || !email) { msg.textContent = 'Name and email are required'; msg.className = 'text-sm font-bold text-rose-400'; return; }
+      const res = await fetch('/admin-api/approved-teachers', { method: 'POST', headers: H(), body: JSON.stringify({ name, email }) });
+      const data = await res.json();
+      if (data.success) {
+        msg.textContent = '✅ ' + data.message; msg.className = 'text-sm font-bold text-emerald-400';
+        document.getElementById('t-name').value = ''; document.getElementById('t-email').value = '';
+        fetchData();
+      } else { msg.textContent = '❌ ' + data.error; msg.className = 'text-sm font-bold text-rose-400'; }
+      setTimeout(() => msg.textContent = '', 4000);
+    }
+
+    async function revokeTeacher(email) {
+      if (!confirm(`Revoke access for ${email}? This will also delete their account.`)) return;
+      await fetch(`/admin-api/approved-teachers/${encodeURIComponent(email)}`, { method: 'DELETE', headers: H() });
+      fetchData();
+    }
+
 
     function populateFilters() {
       ['Domain', 'Year', 'Program', 'Branch'].forEach(key => {
