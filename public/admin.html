@@ -39,6 +39,8 @@
     <div class="p-8 border-b border-white/5"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl shadow-xl">🛡️</div><div><h1 class="text-xl font-bold tracking-tight">A.E.G.I.S</h1><p class="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em] mt-0.5">Admin Control</p></div></div></div>
     <nav class="flex flex-col flex-1 p-6 space-y-4">
       <button onclick="switchTab('monitoring')" id="tab-monitoring" class="w-full sidebar-btn-base sidebar-btn-active"><span class="text-lg">📊</span><span class="font-bold">Monitoring</span></button>
+      <button onclick="switchTab('courses')" id="tab-courses" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">📚</span><span class="font-bold">Courses</span></button>
+      <button onclick="switchTab('assignments')" id="tab-assignments" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">🔗</span><span class="font-bold">Assignments</span></button>
       <button onclick="switchTab('teachers')" id="tab-teachers" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">👨‍🏫</span><span class="font-bold">Teachers</span></button>
       <button onclick="switchTab('students')" id="tab-students" class="w-full sidebar-btn-base sidebar-btn-inactive"><span class="text-lg">🎓</span><span class="font-bold">Students</span></button>
     </nav>
@@ -112,8 +114,86 @@
     </div>
   </main>
 
+  <!-- COURSES PANEL -->
+  <div id="coursesPanel" class="hidden flex-1 flex flex-col overflow-hidden h-full">
+    <div class="flex-1 overflow-y-auto p-8 lg:p-14">
+      <div class="max-w-[960px] mx-auto space-y-10">
+        <div>
+          <h2 class="text-4xl font-extrabold tracking-tight mb-2">Courses</h2>
+          <p class="text-slate-500 font-medium text-lg">Add and manage subjects taught at the institution.</p>
+        </div>
+        <!-- Add Course Form -->
+        <div class="glass p-8 rounded-[32px] space-y-6">
+          <h3 class="text-lg font-bold text-indigo-400">➕ Add New Course</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Course ID *</label><input id="c-id" placeholder="e.g. CS301" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Subject Name *</label><input id="c-name" placeholder="e.g. Data Structures" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Semester</label><input id="c-sem" placeholder="e.g. 5" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Department</label><input id="c-dept" placeholder="e.g. CSE" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"></div>
+          </div>
+          <div class="flex items-center gap-4">
+            <button onclick="addCourse()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl transition-all">Add Course</button>
+            <span id="c-msg" class="text-sm font-bold"></span>
+          </div>
+        </div>
+        <!-- Course List -->
+        <div class="glass rounded-[32px] overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead class="bg-indigo-500/5 border-b border-white/5 text-slate-500 text-[10px] uppercase font-black tracking-[0.2em]">
+                <tr><th class="px-8 py-5">Course ID</th><th class="px-8 py-5">Subject Name</th><th class="px-8 py-5">Semester</th><th class="px-8 py-5">Department</th><th class="px-8 py-5 text-right">Action</th></tr>
+              </thead>
+              <tbody id="coursesBody" class="divide-y divide-white/5"></tbody>
+            </table>
+          </div>
+          <div id="coursesEmpty" class="hidden py-24 text-center text-slate-500 font-bold"><div class="text-5xl mb-4 opacity-30">📚</div>No courses added yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ASSIGNMENTS PANEL -->
+  <div id="assignmentsPanel" class="hidden flex-1 flex flex-col overflow-hidden h-full">
+    <div class="flex-1 overflow-y-auto p-8 lg:p-14">
+      <div class="max-w-[960px] mx-auto space-y-10">
+        <div>
+          <h2 class="text-4xl font-extrabold tracking-tight mb-2">Teacher Assignments</h2>
+          <p class="text-slate-500 font-medium text-lg">Assign teachers to courses they are responsible for.</p>
+        </div>
+        <!-- Assign Form -->
+        <div class="glass p-8 rounded-[32px] space-y-6">
+          <h3 class="text-lg font-bold text-indigo-400">🔗 Assign Teacher to Course</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Teacher</label>
+              <select id="a-teacher" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"><option value="">— Select Teacher —</option></select>
+            </div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Course</label>
+              <select id="a-course" class="w-full bg-[#0f172a] border border-slate-800 text-white px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"><option value="">— Select Course —</option></select>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <button onclick="addAssignment()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl transition-all">Assign</button>
+            <span id="a-msg" class="text-sm font-bold"></span>
+          </div>
+        </div>
+        <!-- Assignment List -->
+        <div class="glass rounded-[32px] overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead class="bg-indigo-500/5 border-b border-white/5 text-slate-500 text-[10px] uppercase font-black tracking-[0.2em]">
+                <tr><th class="px-8 py-5">Teacher</th><th class="px-8 py-5">Email</th><th class="px-8 py-5">Course</th><th class="px-8 py-5">Course ID</th><th class="px-8 py-5 text-right">Action</th></tr>
+              </thead>
+              <tbody id="assignmentsBody" class="divide-y divide-white/5"></tbody>
+            </table>
+          </div>
+          <div id="assignmentsEmpty" class="hidden py-24 text-center text-slate-500 font-bold"><div class="text-5xl mb-4 opacity-30">🔗</div>No assignments yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    let authUser = localStorage.getItem('adminUser') || '', authPass = localStorage.getItem('adminPass') || '', currentTab = 'monitoring', branchChart, hourlyChart, allTeachers = [], allStudents = [], renderedStudents = [];
+    let authUser = localStorage.getItem('adminUser') || '', authPass = localStorage.getItem('adminPass') || '', currentTab = 'monitoring', branchChart, hourlyChart, allTeachers = [], allStudents = [], renderedStudents = [], allCourses = [], allAssignments = [];
     if (authUser && authPass) { showDashboard(); fetchStats(); }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -128,19 +208,32 @@
       } else { document.getElementById('loginError').textContent = 'Invalid credentials'; document.getElementById('loginError').classList.remove('hidden'); }
     });
 
-    function showDashboard() { document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('sidebar').classList.add('flex'); document.getElementById('sidebar').classList.remove('hidden'); document.getElementById('dashboard').classList.remove('hidden'); }
+    function showDashboard() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('sidebar').classList.add('flex');
+      document.getElementById('sidebar').classList.remove('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+    }
     function logout() { localStorage.clear(); location.reload(); }
 
+    const ALL_TABS = ['monitoring','courses','assignments','teachers','students'];
     function switchTab(tab) {
       currentTab = tab;
-      ['monitoring', 'teachers', 'students'].forEach(t => { 
-        const btn = document.getElementById('tab-' + t); 
+      ALL_TABS.forEach(t => {
+        const btn = document.getElementById('tab-' + t);
         btn.classList.toggle('sidebar-btn-active', t === tab);
         btn.classList.toggle('sidebar-btn-inactive', t !== tab);
       });
       document.getElementById('monitoringView').classList.toggle('hidden', tab !== 'monitoring');
-      document.getElementById('tableView').classList.toggle('hidden', tab === 'monitoring');
-      if (tab === 'monitoring') fetchStats(); else fetchData();
+      document.getElementById('tableView').classList.toggle('hidden', !['teachers','students'].includes(tab));
+      document.getElementById('coursesPanel').classList.toggle('hidden', tab !== 'courses');
+      document.getElementById('assignmentsPanel').classList.toggle('hidden', tab !== 'assignments');
+      // Hide main dashboard wrapper when on courses/assignments
+      document.getElementById('dashboard').classList.toggle('hidden', ['courses','assignments'].includes(tab));
+      if (tab === 'monitoring') fetchStats();
+      else if (tab === 'teachers' || tab === 'students') fetchData();
+      else if (tab === 'courses') fetchCourses();
+      else if (tab === 'assignments') fetchAssignments();
     }
 
     async function fetchStats() {
@@ -226,6 +319,93 @@
 
     async function massDeleteStudents() { if (renderedStudents.length && confirm(`Wipe device records for ${renderedStudents.length} students?`)) { const res = await fetch('/admin-api/students/bulk-delete', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-user': authUser, 'x-admin-password': authPass }, body: JSON.stringify({ emails: renderedStudents.map(st => st.email) }) }); (await res.json()).success ? fetchData() : alert('Failed'); } }
     async function deleteX(t, e) { if (confirm(`Confirm ${t} deletion?`)) { await fetch(`/admin-api/${t}/${encodeURIComponent(e)}`, { method:'DELETE', headers:{'x-admin-user':authUser, 'x-admin-password':authPass} }); fetchData(); } }
+
+    // ── Courses ──────────────────────────────────────────────────────────────
+    const H = (s) => ({ 'Content-Type':'application/json','x-admin-user':authUser,'x-admin-password':authPass });
+    async function fetchCourses() {
+      const res = await fetch('/admin-api/courses', { headers: H() });
+      const data = await res.json();
+      allCourses = data.courses || [];
+      renderCourses();
+    }
+    function renderCourses() {
+      const b = document.getElementById('coursesBody');
+      const e = document.getElementById('coursesEmpty');
+      if (!allCourses.length) { b.innerHTML=''; e.classList.remove('hidden'); return; }
+      e.classList.add('hidden');
+      b.innerHTML = allCourses.map(c => `
+        <tr class="hover:bg-white/[0.02] transition-colors">
+          <td class="px-8 py-6"><span class="px-3 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 font-black text-xs tracking-widest">${c.courseId}</span></td>
+          <td class="px-8 py-6 font-bold text-slate-200">${c.name}</td>
+          <td class="px-8 py-6 text-slate-400 font-bold">${c.semester || '—'}</td>
+          <td class="px-8 py-6 text-slate-400 font-bold">${c.department || '—'}</td>
+          <td class="px-8 py-6 text-right"><button onclick="deleteCourse('${c.courseId}')" class="text-rose-400 font-black hover:underline">Delete</button></td>
+        </tr>`).join('');
+    }
+    async function addCourse() {
+      const courseId=document.getElementById('c-id').value.trim(), name=document.getElementById('c-name').value.trim(),
+            semester=document.getElementById('c-sem').value.trim(), department=document.getElementById('c-dept').value.trim();
+      const msg = document.getElementById('c-msg');
+      if (!courseId || !name) { msg.textContent='Course ID and Name are required'; msg.className='text-sm font-bold text-rose-400'; return; }
+      const res = await fetch('/admin-api/courses', { method:'POST', headers:H(), body:JSON.stringify({courseId,name,semester,department}) });
+      const data = await res.json();
+      if (data.success) { msg.textContent='✅ Course added!'; msg.className='text-sm font-bold text-emerald-400'; ['c-id','c-name','c-sem','c-dept'].forEach(id=>document.getElementById(id).value=''); fetchCourses(); populateAssignmentDropdowns(); }
+      else { msg.textContent='❌ '+data.error; msg.className='text-sm font-bold text-rose-400'; }
+      setTimeout(()=>msg.textContent='',3000);
+    }
+    async function deleteCourse(id) {
+      if (!confirm(`Delete course ${id} and all its assignments?`)) return;
+      await fetch(`/admin-api/courses/${encodeURIComponent(id)}`, { method:'DELETE', headers:H() });
+      fetchCourses(); fetchAssignments();
+    }
+
+    // ── Assignments ──────────────────────────────────────────────────────────
+    async function fetchAssignments() {
+      await populateAssignmentDropdowns();
+      const res = await fetch('/admin-api/teacher-courses', { headers: H() });
+      const data = await res.json();
+      allAssignments = data.assignments || [];
+      renderAssignments();
+    }
+    async function populateAssignmentDropdowns() {
+      const [tr, cr] = await Promise.all([
+        fetch('/admin-api/data', { headers: H() }).then(r=>r.json()),
+        fetch('/admin-api/courses', { headers: H() }).then(r=>r.json()),
+      ]);
+      const ts = document.getElementById('a-teacher');
+      const cs = document.getElementById('a-course');
+      ts.innerHTML = '<option value="">— Select Teacher —</option>' + (tr.teachers||[]).map(t=>`<option value="${t.email}">${t.name} (${t.email})</option>`).join('');
+      cs.innerHTML = '<option value="">— Select Course —</option>' + (cr.courses||[]).map(c=>`<option value="${c.courseId}">${c.name} [${c.courseId}]${c.semester ? ' · Sem '+c.semester : ''}${c.department ? ' · '+c.department : ''}</option>`).join('');
+    }
+    function renderAssignments() {
+      const b = document.getElementById('assignmentsBody');
+      const e = document.getElementById('assignmentsEmpty');
+      if (!allAssignments.length) { b.innerHTML=''; e.classList.remove('hidden'); return; }
+      e.classList.add('hidden');
+      b.innerHTML = allAssignments.map(a => `
+        <tr class="hover:bg-white/[0.02] transition-colors">
+          <td class="px-8 py-6 font-bold text-slate-200">${a.teacherName}</td>
+          <td class="px-8 py-6 text-slate-400 font-bold text-sm">${a.teacherEmail}</td>
+          <td class="px-8 py-6 font-bold text-slate-200">${a.courseName}</td>
+          <td class="px-8 py-6"><span class="px-3 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 font-black text-xs tracking-widest">${a.courseId}</span></td>
+          <td class="px-8 py-6 text-right"><button onclick="removeAssignment('${a._id}')" class="text-rose-400 font-black hover:underline">Remove</button></td>
+        </tr>`).join('');
+    }
+    async function addAssignment() {
+      const teacherEmail=document.getElementById('a-teacher').value, courseId=document.getElementById('a-course').value;
+      const msg = document.getElementById('a-msg');
+      if (!teacherEmail || !courseId) { msg.textContent='Select both teacher and course'; msg.className='text-sm font-bold text-rose-400'; return; }
+      const res = await fetch('/admin-api/teacher-courses', { method:'POST', headers:H(), body:JSON.stringify({teacherEmail,courseId}) });
+      const data = await res.json();
+      if (data.success) { msg.textContent='✅ '+data.message; msg.className='text-sm font-bold text-emerald-400'; fetchAssignments(); }
+      else { msg.textContent='❌ '+data.error; msg.className='text-sm font-bold text-rose-400'; }
+      setTimeout(()=>msg.textContent='',3000);
+    }
+    async function removeAssignment(id) {
+      if (!confirm('Remove this assignment?')) return;
+      await fetch(`/admin-api/teacher-courses/${id}`, { method:'DELETE', headers:H() });
+      fetchAssignments();
+    }
   </script>
 </body>
 </html>

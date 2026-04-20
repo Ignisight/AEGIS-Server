@@ -259,6 +259,25 @@ const DeviceSchema = new mongoose.Schema({
 });
 const Device = mongoose.model('Device', DeviceSchema);
 
+// Courses (master list of subjects)
+const CourseSchema = new mongoose.Schema({
+  courseId:   { type: String, required: true, unique: true, index: true }, // e.g. "CS301"
+  name:       { type: String, required: true },   // e.g. "Data Structures"
+  semester:   { type: String, default: '' },       // e.g. "5"
+  department: { type: String, default: '' },       // e.g. "CSE"
+  createdAt:  { type: Date, default: Date.now },
+});
+const Course = mongoose.model('Course', CourseSchema);
+
+// Teacher ↔ Course assignments
+const TeacherCourseSchema = new mongoose.Schema({
+  teacherEmail: { type: String, required: true, lowercase: true, index: true },
+  courseId:     { type: String, required: true, index: true },
+  assignedAt:   { type: Date, default: Date.now },
+});
+TeacherCourseSchema.index({ teacherEmail: 1, courseId: 1 }, { unique: true }); // no duplicate assignments
+const TeacherCourse = mongoose.model('TeacherCourse', TeacherCourseSchema);
+
 // Location Events (student entry/exit flips — retained 7 days)
 const LocationEventSchema = new mongoose.Schema({
   email:       { type: String, required: true, lowercase: true, index: true },
@@ -1292,6 +1311,158 @@ app.post('/admin-api/students/bulk-delete', async (req, res) => {
   } catch (err) {
     res.json({ success: false, error: err.message });
   }
+});
+
+// ── Admin: Sessions ──────────────────────────────────────────────────────────
+app.get('/admin-api/sessions', async (req, res) => {
+  try {
+    const sessions = await Session.find().sort({ createdAt: -1 }).limit(200);
+    const result = await Promise.all(sessions.map(async s => ({
+      id: s.sessionId, name: s.name, code: s.code,
+      teacherEmail: s.teacherEmail || '—', active: s.active,
+      createdAt: s.createdAt, stoppedAt: s.stoppedAt || null,
+      lat: s.lat, lon: s.lon, radius: s.radius || 80,
+      durationMs: s.durationMs || null,
+      attendeeCount: await Attendance.countDocuments({ sessionId: s.sessionId }),
+    })));
+    res.json({ success: true, sessions: result });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.get('/admin-api/sessions/:id/attendance', async (req, res) => {
+  try {
+    const rows = await Attendance.find({ sessionId: parseInt(req.params.id) }).sort({ submittedAt: 1 });
+    res.json({ success: true, attendance: rows });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.post('/admin-api/sessions/:id/stop', async (req, res) => {
+  try {
+    const s = await Session.findOne({ sessionId: parseInt(req.params.id) });
+    if (!s) return res.json({ success: false, error: 'Session not found' });
+    s.active = false; s.stoppedAt = new Date(); await s.save();
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.delete('/admin-api/sessions/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await Session.deleteOne({ sessionId: id });
+    await Attendance.deleteMany({ sessionId: id });
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.post('/admin-api/sessions/delete-many', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) return res.json({ success: false, error: 'ids array required' });
+    await Session.deleteMany({ sessionId: { $in: ids } });
+    await Attendance.deleteMany({ sessionId: { $in: ids } });
+    res.json({ success: true, deleted: ids.length });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// ── Admin: Geo Events ────────────────────────────────────────────────────────
+app.get('/admin-api/geo-events', async (req, res) => {
+  try {
+    const { sessionCode, limit } = req.query;
+    const filter = sessionCode ? { sessionCode } : {};
+    const events = await LocationEvent.find(filter).sort({ timestamp: -1 }).limit(parseInt(limit) || 200);
+    res.json({ success: true, events });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// ── Admin: Export session XLSX ────────────────────────────────────────────────
+app.get('/admin-api/export/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const session = await Session.findOne({ sessionId: id });
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+    const rows = await Attendance.find({ sessionId: id }).sort({ rollNo: 1 });
+    const buffer = await getSessionXlsxBuffer(session, rows);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${getSessionFilename(session)}"`);
+    res.end(buffer);
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// ── Admin: Courses ────────────────────────────────────────────────────────────
+app.get('/admin-api/courses', async (req, res) => {
+  try {
+    const courses = await Course.find().sort({ department: 1, semester: 1, name: 1 });
+    res.json({ success: true, courses });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.post('/admin-api/courses', async (req, res) => {
+  try {
+    const { courseId, name, semester, department } = req.body;
+    if (!courseId || !name) return res.json({ success: false, error: 'courseId and name are required' });
+    const existing = await Course.findOne({ courseId: courseId.trim().toUpperCase() });
+    if (existing) return res.json({ success: false, error: 'Course ID already exists' });
+    const course = await Course.create({
+      courseId:   courseId.trim().toUpperCase(),
+      name:       name.trim(),
+      semester:   (semester || '').trim(),
+      department: (department || '').trim().toUpperCase(),
+    });
+    res.json({ success: true, course });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.delete('/admin-api/courses/:id', async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    await Course.deleteOne({ courseId });
+    await TeacherCourse.deleteMany({ courseId }); // also remove assignments
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// ── Admin: Teacher-Course Assignments ─────────────────────────────────────────
+app.get('/admin-api/teacher-courses', async (req, res) => {
+  try {
+    const assignments = await TeacherCourse.find().sort({ assignedAt: -1 });
+    // Enrich with course names and teacher names
+    const courses  = await Course.find();
+    const teachers = await Teacher.find({}, 'email name');
+    const courseMap  = {}; courses.forEach(c  => courseMap[c.courseId]   = c.name);
+    const teacherMap = {}; teachers.forEach(t => teacherMap[t.email]     = t.name);
+    const enriched = assignments.map(a => ({
+      _id:          a._id,
+      teacherEmail: a.teacherEmail,
+      teacherName:  teacherMap[a.teacherEmail] || '—',
+      courseId:     a.courseId,
+      courseName:   courseMap[a.courseId]  || '—',
+      assignedAt:   a.assignedAt,
+    }));
+    res.json({ success: true, assignments: enriched });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.post('/admin-api/teacher-courses', async (req, res) => {
+  try {
+    const { teacherEmail, courseId } = req.body;
+    if (!teacherEmail || !courseId) return res.json({ success: false, error: 'teacherEmail and courseId are required' });
+    const teacher = await Teacher.findOne({ email: teacherEmail.toLowerCase().trim() });
+    if (!teacher) return res.json({ success: false, error: 'Teacher not found' });
+    const course = await Course.findOne({ courseId: courseId.trim().toUpperCase() });
+    if (!course) return res.json({ success: false, error: 'Course not found' });
+    await TeacherCourse.create({ teacherEmail: teacherEmail.toLowerCase().trim(), courseId: courseId.trim().toUpperCase() });
+    res.json({ success: true, message: `${teacher.name} assigned to ${course.name}` });
+  } catch (err) {
+    if (err.code === 11000) return res.json({ success: false, error: 'This teacher is already assigned to this course' });
+    res.json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/admin-api/teacher-courses/:id', async (req, res) => {
+  try {
+    await TeacherCourse.deleteOne({ _id: req.params.id });
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
 // ==========================================
