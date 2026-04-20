@@ -1,4 +1,4 @@
-# 📋 Nexisight Attendance Server (v2.7.0) 
+# 🛡️ A.E.G.I.S — Automated Entry Geo-fenced ID System (v2.7.0) 
 
 Backend REST API for the QR Attendance System. Handles teacher authentication, attendance sessions, student device binding, OTP password reset, and data export.
 
@@ -6,7 +6,7 @@ Backend REST API for the QR Attendance System. Handles teacher authentication, a
 **Admin Dashboard:** [attendance-server-ddgs.onrender.com/admin](https://attendance-server-ddgs.onrender.com/admin)
 
 ### 📥 Download the Official App (v2.7.0)
-The system now uses **App-Only Security**. Browser-based submission is disabled to ensure device binding and geofencing integrity. Students must use the latest Nexisight app.
+The system now uses **App-Only Security**. Browser-based submission is disabled to ensure device binding and geofencing integrity. Students must use the latest A.E.G.I.S app.
 
 👉 [Download Official APK (v2.7.0)](https://github.com/Ignisight/attendance-app)
 
