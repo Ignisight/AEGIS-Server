@@ -4,6 +4,7 @@
 
 process.env.TZ = 'Asia/Kolkata';
 require('dotenv').config();
+console.log('🚀 [STARTUP] A.E.G.I.S Booting Sequence Initiated...');
 
 const express = require('express');
 const compression = require('compression');
@@ -1859,9 +1860,6 @@ async function runAttendanceEmailJob() {
 // START SERVER
 // ==========================================
 app.listen(PORT, '0.0.0.0', () => {
-  const ip = getLocalIP();
-  console.log('');
-  console.log('  ╔══════════════════════════════════════════════╗');
   console.log('  ║   🛡️   A.E.G.I.S — Attendance Server        ║');
   console.log('  ║   Automated Entry Geo-fenced ID System       ║');
   console.log('  ╠══════════════════════════════════════════════╣');
