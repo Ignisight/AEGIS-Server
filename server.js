@@ -3,6 +3,7 @@
 // =============================================
 
 process.env.TZ = 'Asia/Kolkata';
+require('dotenv').config();
 
 const express = require('express');
 const compression = require('compression');
@@ -47,7 +48,7 @@ console.warn = (...args) => logger.warn(args.join(' '));
 
 const fsFilters = require('fs');
 if (!fsFilters.existsSync('./logs')) {
-    fsFilters.mkdirSync('./logs');
+  fsFilters.mkdirSync('./logs');
 }
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -215,17 +216,17 @@ const OTP = mongoose.model('OTP', OTPSchema);
 
 // Attendance Sessions (retained 6 months)
 const SessionSchema = new mongoose.Schema({
-  sessionId:    { type: Number,  required: true, unique: true, index: true },
-  name:         { type: String,  required: true },
-  code:         { type: String,  required: true, unique: true, index: true },
-  teacherEmail: { type: String,  default: '', lowercase: true },
-  createdAt:    { type: Date,    default: Date.now },
-  active:       { type: Boolean, default: true, index: true },
-  stoppedAt:    { type: Date,    default: null },
-  lat:          { type: Number,  default: null },
-  lon:          { type: Number,  default: null },
-  radius:       { type: Number,  default: 80   },  // geofence radius in metres
-  durationMs:   { type: Number,  default: null },  // null = use 10-min auto-close default
+  sessionId: { type: Number, required: true, unique: true, index: true },
+  name: { type: String, required: true },
+  code: { type: String, required: true, unique: true, index: true },
+  teacherEmail: { type: String, default: '', lowercase: true },
+  createdAt: { type: Date, default: Date.now },
+  active: { type: Boolean, default: true, index: true },
+  stoppedAt: { type: Date, default: null },
+  lat: { type: Number, default: null },
+  lon: { type: Number, default: null },
+  radius: { type: Number, default: 80 },  // geofence radius in metres
+  durationMs: { type: Number, default: null },  // null = use 10-min auto-close default
 });
 // TTL: auto-delete sessions older than 6 months
 SessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 183 * 24 * 60 * 60 });
@@ -261,48 +262,65 @@ const Device = mongoose.model('Device', DeviceSchema);
 
 // Admin-approved teacher whitelist
 const ApprovedTeacherSchema = new mongoose.Schema({
-  email:     { type: String, required: true, unique: true, lowercase: true, index: true },
-  name:      { type: String, required: true },
-  addedAt:   { type: Date, default: Date.now },
+  email: { type: String, required: true, unique: true, lowercase: true, index: true },
+  name: { type: String, required: true },
+  addedAt: { type: Date, default: Date.now },
 });
 const ApprovedTeacher = mongoose.model('ApprovedTeacher', ApprovedTeacherSchema);
 
 // Departments
 const DepartmentSchema = new mongoose.Schema({
-  deptId:    { type: String, required: true, unique: true, uppercase: true, index: true }, // e.g. "CSE"
-  name:      { type: String, required: true },  // e.g. "Computer Science & Engineering"
+  deptId: { type: String, required: true, unique: true, uppercase: true, index: true }, // e.g. "CSE"
+  name: { type: String, required: true },  // e.g. "Computer Science & Engineering"
   createdAt: { type: Date, default: Date.now },
 });
 const Department = mongoose.model('Department', DepartmentSchema);
 
 // Courses (master list of subjects)
 const CourseSchema = new mongoose.Schema({
-  courseId:   { type: String, required: true, unique: true, index: true }, // e.g. "CS301"
-  name:       { type: String, required: true },   // e.g. "Data Structures"
-  semester:   { type: String, default: '' },       // e.g. "5"
+  courseId: { type: String, required: true, unique: true, index: true }, // e.g. "CS301"
+  name: { type: String, required: true },   // e.g. "Data Structures"
+  semester: { type: String, default: '' },       // e.g. "5"
   department: { type: String, default: '' },       // e.g. "CSE"
-  createdAt:  { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now },
 });
 const Course = mongoose.model('Course', CourseSchema);
 
 // Teacher ↔ Course assignments
 const TeacherCourseSchema = new mongoose.Schema({
   teacherEmail: { type: String, required: true, lowercase: true, index: true },
-  courseId:     { type: String, required: true, index: true },
-  assignedAt:   { type: Date, default: Date.now },
+  courseId: { type: String, required: true, index: true },
+  assignedAt: { type: Date, default: Date.now },
 });
 TeacherCourseSchema.index({ teacherEmail: 1, courseId: 1 }, { unique: true }); // no duplicate assignments
 const TeacherCourse = mongoose.model('TeacherCourse', TeacherCourseSchema);
 
+// Student ↔ Course Enrollments (admin uploads via Excel)
+const StudentCourseSchema = new mongoose.Schema({
+  email: { type: String, required: true, lowercase: true, index: true },
+  courseId: { type: String, required: true, index: true },
+  enrolledAt: { type: Date, default: Date.now },
+});
+StudentCourseSchema.index({ email: 1, courseId: 1 }, { unique: true }); // no duplicate enrollments
+const StudentCourse = mongoose.model('StudentCourse', StudentCourseSchema);
+
+// Email Delivery Logs (prevents spamming and respects 400/day limit)
+const EmailLogSchema = new mongoose.Schema({
+  email: { type: String, required: true, lowercase: true, index: true },
+  courseIds: [{ type: String }],
+  sentAt: { type: Date, default: Date.now, index: true },
+});
+const EmailLog = mongoose.model('EmailLog', EmailLogSchema);
+
 // Location Events (student entry/exit flips — retained 7 days)
 const LocationEventSchema = new mongoose.Schema({
-  email:       { type: String, required: true, lowercase: true, index: true },
-  deviceId:    { type: String, required: true },
+  email: { type: String, required: true, lowercase: true, index: true },
+  deviceId: { type: String, required: true },
   sessionCode: { type: String, required: true, index: true },
-  eventType:   { type: String, enum: ['entry', 'exit'], required: true },
-  lat:         { type: Number },
-  lon:         { type: Number },
-  timestamp:   { type: Date, default: Date.now },
+  eventType: { type: String, enum: ['entry', 'exit'], required: true },
+  lat: { type: Number },
+  lon: { type: Number },
+  timestamp: { type: Date, default: Date.now },
 });
 LocationEventSchema.index({ timestamp: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 }); // auto-delete after 7 days
 const LocationEvent = mongoose.model('LocationEvent', LocationEventSchema);
@@ -324,7 +342,7 @@ function isValidSignature(payload, signature, timestamp) {
   if (!signature || !timestamp) return false;
   // Check if request is too old (replay protection window: 60s)
   if (Math.abs(Date.now() - Number(timestamp)) > 60000) return false;
-  
+
   const hash = crypto.createHash('sha256');
   hash.update(payload + timestamp + process.env.APP_SECRET_KEY);
   const expected = hash.digest('hex');
@@ -484,13 +502,13 @@ app.post('/api/register', async (req, res) => {
   const finalDomain = (allowedDomain && allowedDomain.trim()) ? allowedDomain.replace(/@/g, '').trim().toLowerCase() : '';
 
   await Teacher.create({
-    id:            Date.now(),
-    email:         emailLower,
-    name:          approved.name || name.trim(), // use admin-set name as canonical
-    college:       (college || '').trim(),
-    department:    (department || '').trim(),
+    id: Date.now(),
+    email: emailLower,
+    name: approved.name || name.trim(), // use admin-set name as canonical
+    college: (college || '').trim(),
+    department: (department || '').trim(),
     allowedDomain: finalDomain,
-    password:      hashedPassword,
+    password: hashedPassword,
   });
   res.json({ success: true, message: 'Account created! You can now login.' });
 });
@@ -744,7 +762,7 @@ app.post('/api/student/submit', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid email format.' });
   if (lat !== undefined && lon !== undefined && !isValidGPS(lat, lon))
     return res.status(400).json({ success: false, error: 'Invalid GPS coordinates.' });
-  
+
   // FIX: Rate limit — max 5 submissions per 60s per device (Issue #4)
   if (!checkSubmitRateLimit(deviceId))
     return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait.' });
@@ -812,11 +830,79 @@ app.post('/api/student/submit', async (req, res) => {
   res.json({
     success: true,
     message: 'Attendance securely accepted!',
-    lat:              activeSession.lat,
-    lon:              activeSession.lon,
-    radius:           activeSession.radius || 80,
+    lat: activeSession.lat,
+    lon: activeSession.lon,
+    radius: activeSession.radius || 80,
     sessionDurationMs: SESSION_DURATION_MS,
   });
+});
+
+// ==========================================
+// TEACHER COURSE FETCH (from MongoDB — used by mobile app HomeScreen)
+// ==========================================
+app.get('/api/teacher-courses', async (req, res) => {
+  const { teacherEmail } = req.query;
+  if (!teacherEmail) return res.json({ success: false, error: 'teacherEmail is required' });
+  try {
+    const emailLower = teacherEmail.toLowerCase().trim();
+    const assignments = await TeacherCourse.find({ teacherEmail: emailLower });
+    if (!assignments.length) return res.json({ success: true, courses: [] });
+    const courseIds = assignments.map(a => a.courseId);
+    const courses = await Course.find({ courseId: { $in: courseIds } });
+    const result = courses.map(c => ({
+      courseId: c.courseId,
+      courseName: c.name,
+      semester: c.semester || '',
+      department: c.department || '',
+    }));
+    res.json({ success: true, courses: result });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// STUDENT COURSES & ATTENDANCE % API
+// ==========================================
+app.get('/api/student/courses', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.json({ success: false, error: 'email is required' });
+  const emailLower = email.toLowerCase().trim();
+  try {
+    const enrollments = await StudentCourse.find({ email: emailLower });
+    if (!enrollments.length) return res.json({ success: true, courses: [] });
+    const courseIds = enrollments.map(e => e.courseId);
+    const courses = await Course.find({ courseId: { $in: courseIds } });
+    const courseMap = {};
+    courses.forEach(c => courseMap[c.courseId] = { name: c.name, semester: c.semester || '', department: c.department || '' });
+
+    // For each course, count sessions and attendance
+    const result = await Promise.all(courseIds.map(async (courseId) => {
+      const courseInfo = courseMap[courseId] || { name: courseId, semester: '', department: '' };
+      // Sessions for this course: name starts with courseId (format "CS301 — Subject Name")
+      const sessions = await Session.find({ name: new RegExp(`^${courseId}\\s*[—-]`, 'i'), stoppedAt: { $ne: null } });
+      const totalSessions = sessions.length;
+      let attended = 0;
+      if (totalSessions > 0) {
+        const sessionIds = sessions.map(s => s.sessionId);
+        attended = await Attendance.countDocuments({ email: emailLower, sessionId: { $in: sessionIds } });
+      }
+      const percentage = totalSessions > 0 ? Math.round((attended / totalSessions) * 100) : null;
+      return {
+        courseId,
+        courseName: courseInfo.name,
+        semester: courseInfo.semester,
+        department: courseInfo.department,
+        totalSessions,
+        attended,
+        percentage,
+      };
+    }));
+
+    res.json({ success: true, courses: result });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // ==========================================
@@ -843,7 +929,7 @@ app.post('/api/start-session', async (req, res) => {
     lat: lat || null,
     lon: lon || null,
     durationMs: durationMs || null,   // null = fallback to 10 min auto-close
-    radius:     radius     || 80,     // metres — default 80 m
+    radius: radius || 80,     // metres — default 80 m
   });
 
   const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://${getLocalIP()}:${PORT}`;
@@ -892,12 +978,12 @@ app.post('/api/student/location-event', async (req, res) => {
     return res.status(404).json({ success: false, error: 'Session not found.' });
 
   await LocationEvent.create({
-    email:       emailLower,
+    email: emailLower,
     deviceId,
     sessionCode,
     eventType,
-    lat:       lat  || null,
-    lon:       lon  || null,
+    lat: lat || null,
+    lon: lon || null,
     timestamp: timestamp ? new Date(timestamp) : new Date(),
   });
 
@@ -1004,7 +1090,7 @@ app.post('/api/sessions/clear-all', async (req, res) => {
 async function getSessionXlsxBuffer(session, rows) {
   const excelHeaders = ['Roll No', 'Name', 'Reg No', 'Email', 'Year', 'Program', 'Branch', 'Session', 'Date', 'Time'];
   const colWidths = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }];
-  
+
   const wb = XLSX.utils.book_new();
   if (rows.length === 0) {
     const ws = XLSX.utils.aoa_to_sheet([excelHeaders]);
@@ -1059,7 +1145,7 @@ app.get('/api/export-multi', async (req, res) => {
   for (const session of sessions) {
     const rows = await Attendance.find({ sessionId: session.sessionId });
     rows.sort((a, b) => (a.rollNo || '').localeCompare(b.rollNo || '', undefined, { numeric: true }));
-    
+
     const buffer = await getSessionXlsxBuffer(session, rows);
     const fileName = getSessionFilename(session); // attendance_<name>_<date>_<time>.xlsx
     archive.append(buffer, { name: fileName });
@@ -1071,7 +1157,7 @@ app.get('/api/export-multi', async (req, res) => {
 // Export single session
 app.get('/api/export', async (req, res) => {
   const { sessionId } = req.query;
-  
+
   if (!sessionId) {
     return res.status(400).json({ success: false, error: 'sessionId is required for export.' });
   }
@@ -1086,7 +1172,7 @@ app.get('/api/export', async (req, res) => {
 
   const buffer = await getSessionXlsxBuffer(session, rows);
   const safeFilename = getSessionFilename(session);
-  
+
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
   res.setHeader('Content-Length', buffer.length);
@@ -1210,8 +1296,8 @@ app.use('/admin-api', (req, res, next) => {
 
 app.get('/admin-api/data', async (req, res) => {
   try {
-    const teachers         = await Teacher.find({}, '-password').sort({ name: 1 });
-    const students         = await Device.find({}).sort({ registeredAt: -1 });
+    const teachers = await Teacher.find({}, '-password').sort({ name: 1 });
+    const students = await Device.find({}).sort({ registeredAt: -1 });
     const approvedTeachers = await ApprovedTeacher.find().sort({ name: 1 });
     res.json({ success: true, teachers, students, approvedTeachers });
   } catch (err) {
@@ -1245,7 +1331,7 @@ app.get('/admin-api/stats', async (req, res) => {
     // Last 7 days attendance trend
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     // Powerful MongoDB Aggregation to offload processing from Node.js Event Loop
     const pipeline = [
       { $match: { submittedAt: { $gte: sevenDaysAgo } } },
@@ -1490,9 +1576,9 @@ app.post('/admin-api/courses', async (req, res) => {
     const existing = await Course.findOne({ courseId: courseId.trim().toUpperCase() });
     if (existing) return res.json({ success: false, error: 'Course ID already exists' });
     const course = await Course.create({
-      courseId:   courseId.trim().toUpperCase(),
-      name:       name.trim(),
-      semester:   (semester || '').trim(),
+      courseId: courseId.trim().toUpperCase(),
+      name: name.trim(),
+      semester: (semester || '').trim(),
       department: (department || '').trim().toUpperCase(),
     });
     res.json({ success: true, course });
@@ -1513,17 +1599,17 @@ app.get('/admin-api/teacher-courses', async (req, res) => {
   try {
     const assignments = await TeacherCourse.find().sort({ assignedAt: -1 });
     // Enrich with course names and teacher names
-    const courses  = await Course.find();
+    const courses = await Course.find();
     const teachers = await Teacher.find({}, 'email name');
-    const courseMap  = {}; courses.forEach(c  => courseMap[c.courseId]   = c.name);
-    const teacherMap = {}; teachers.forEach(t => teacherMap[t.email]     = t.name);
+    const courseMap = {}; courses.forEach(c => courseMap[c.courseId] = c.name);
+    const teacherMap = {}; teachers.forEach(t => teacherMap[t.email] = t.name);
     const enriched = assignments.map(a => ({
-      _id:          a._id,
+      _id: a._id,
       teacherEmail: a.teacherEmail,
-      teacherName:  teacherMap[a.teacherEmail] || '—',
-      courseId:     a.courseId,
-      courseName:   courseMap[a.courseId]  || '—',
-      assignedAt:   a.assignedAt,
+      teacherName: teacherMap[a.teacherEmail] || '—',
+      courseId: a.courseId,
+      courseName: courseMap[a.courseId] || '—',
+      assignedAt: a.assignedAt,
     }));
     res.json({ success: true, assignments: enriched });
   } catch (err) { res.json({ success: false, error: err.message }); }
@@ -1551,6 +1637,223 @@ app.delete('/admin-api/teacher-courses/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
+
+// ── Admin: Student Enrollments (bulk Excel upload) ────────────────────────────
+app.get('/admin-api/enrollments', async (req, res) => {
+  try {
+    const { courseId } = req.query;
+    const filter = courseId ? { courseId } : {};
+    const enrollments = await StudentCourse.find(filter).sort({ enrolledAt: -1 });
+    res.json({ success: true, enrollments, count: enrollments.length });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.post('/admin-api/enrollments/upload', upload.single('file'), async (req, res) => {
+  const { courseId } = req.body;
+  if (!courseId) return res.json({ success: false, error: 'courseId is required' });
+  if (!req.file) return res.json({ success: false, error: 'Excel file is required' });
+
+  try {
+    const course = await Course.findOne({ courseId: courseId.trim().toUpperCase() });
+    if (!course) return res.json({ success: false, error: `Course ${courseId} not found` });
+
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    // Find the email column (case-insensitive header match)
+    if (rows.length < 2) return res.json({ success: false, error: 'Excel file is empty or has no data rows' });
+    const header = rows[0].map(h => String(h).toLowerCase().trim());
+    const emailCol = header.findIndex(h => h.includes('email') || h.includes('mail'));
+    if (emailCol === -1) return res.json({ success: false, error: 'No email column found. Add a column with header "Email" or "StudentEmail".' });
+
+    const emails = [];
+    for (let i = 1; i < rows.length; i++) {
+      const raw = String(rows[i][emailCol] || '').trim().toLowerCase();
+      if (raw && isValidEmail(raw)) emails.push(raw);
+    }
+
+    if (!emails.length) return res.json({ success: false, error: 'No valid email addresses found in the file.' });
+
+    const courseIdUpper = courseId.trim().toUpperCase();
+    const docs = emails.map(email => ({ email, courseId: courseIdUpper }));
+
+    // Upsert — skip duplicates, insert new ones
+    let inserted = 0, skipped = 0;
+    for (const doc of docs) {
+      try {
+        await StudentCourse.create(doc);
+        inserted++;
+      } catch (e) {
+        if (e.code === 11000) skipped++; // duplicate — already enrolled
+        else throw e;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `✅ ${inserted} students enrolled in ${courseIdUpper}. ${skipped > 0 ? skipped + ' already existed (skipped).' : ''}`,
+      inserted,
+      skipped,
+      total: emails.length,
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/admin-api/enrollments/:courseId', async (req, res) => {
+  try {
+    const courseId = req.params.courseId.toUpperCase();
+    const result = await StudentCourse.deleteMany({ courseId });
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.delete('/admin-api/enrollments/:courseId/:email', async (req, res) => {
+  try {
+    const courseId = req.params.courseId.toUpperCase();
+    const email = req.params.email.toLowerCase();
+    await StudentCourse.deleteOne({ courseId, email });
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// ==========================================
+// BACKGROUND JOB: LOW ATTENDANCE EMAIL ALERTS
+// ==========================================
+const DAILY_EMAIL_LIMIT = 400; // Gmail SMTP safe limit per day
+const ALERT_THRESHOLD = 75; // Percentage
+const DAYS_BETWEEN_ALERTS = 7; // Don't email same student for same course within 7 days
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER || '',
+    pass: process.env.GMAIL_PASS || ''
+  }
+});
+
+async function runAttendanceEmailJob() {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+    console.log('[MAILER] Missing GMAIL_USER or GMAIL_PASS env variables. Skipping email alerts.');
+    return;
+  }
+
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const emailsSentToday = await EmailLog.countDocuments({ sentAt: { $gte: startOfDay } });
+    
+    if (emailsSentToday >= DAILY_EMAIL_LIMIT) {
+      console.log(`[MAILER] Daily limit reached (${emailsSentToday}/${DAILY_EMAIL_LIMIT}). Suspended until tomorrow.`);
+      return;
+    }
+    
+    let quotaRemaining = DAILY_EMAIL_LIMIT - emailsSentToday;
+    let sentInThisRun = 0;
+
+    const enrollments = await StudentCourse.find({});
+    if (enrollments.length === 0) return;
+
+    const courseIds = [...new Set(enrollments.map(e => e.courseId))];
+    const courses = await Course.find({ courseId: { $in: courseIds } });
+    const courseMap = {};
+    courses.forEach(c => courseMap[c.courseId] = { name: c.name });
+
+    // Cache session counts per course to prevent DB spam
+    const courseSessionCounts = {};
+    const courseSessionIds = {};
+    for (const cid of courseIds) {
+      // Sessions follow the format "CS301 — Subject Name"
+      const sessions = await Session.find({ name: new RegExp(`^${cid}\\s*[—-]`, 'i'), stoppedAt: { $ne: null } }, 'sessionId');
+      courseSessionCounts[cid] = sessions.length;
+      courseSessionIds[cid] = sessions.map(s => s.sessionId);
+    }
+
+    // Step 1: Group low attendance courses by student email
+    const studentAlerts = {};
+
+    for (const enrollment of enrollments) {
+      const { email, courseId } = enrollment;
+      const totalSessions = courseSessionCounts[courseId] || 0;
+      
+      // Don't alert if course just started (less than 3 sessions total)
+      if (totalSessions < 3) continue;
+
+      const attended = await Attendance.countDocuments({ email, sessionId: { $in: courseSessionIds[courseId] } });
+      const percentage = Math.round((attended / totalSessions) * 100);
+
+      if (percentage < ALERT_THRESHOLD) {
+        if (!studentAlerts[email]) studentAlerts[email] = [];
+        studentAlerts[email].push({ courseId, name: courseMap[courseId]?.name || courseId, percentage, attended, totalSessions });
+      }
+    }
+
+    // Step 2: Send ALL low attendance data for a student in ONE single email
+    for (const [email, alertCourses] of Object.entries(studentAlerts)) {
+      if (quotaRemaining <= 0) break;
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS_BETWEEN_ALERTS);
+
+      const alertCourseIds = alertCourses.map(c => c.courseId);
+
+      // Check if we already emailed this student about low attendance in the last 7 days
+      const recentLog = await EmailLog.findOne({
+        email,
+        sentAt: { $gte: sevenDaysAgo }
+      });
+
+      if (!recentLog) {
+        const coursesHtml = alertCourses.map(c => 
+          `<li style="margin-bottom: 8px;">
+            <strong>${c.courseId} - ${c.name}</strong>: <span style="color:#ef4444;">${c.percentage}%</span> <span style="color:#6b7280; font-size:14px;">(${c.attended}/${c.totalSessions} classes)</span>
+          </li>`
+        ).join('');
+
+        const isMultiple = alertCourses.length > 1;
+        const mailOptions = {
+          from: `"A.E.G.I.S Alerts" <${process.env.GMAIL_USER}>`,
+          to: email,
+          subject: isMultiple ? `⚠️ Low Attendance Warning: ${alertCourses.length} Subjects` : `⚠️ Low Attendance Warning: ${alertCourses[0].courseId}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 24px; max-width: 600px; border: 1px solid #e5e7eb; border-radius: 12px; margin: 0 auto;">
+              <h2 style="color: #ef4444; margin-top: 0;">Attendance Alert</h2>
+              <p>Hello,</p>
+              <p>Your current attendance has fallen below the mandatory minimum of ${ALERT_THRESHOLD}% in the following course${isMultiple ? 's' : ''}:</p>
+              
+              <ul style="background: #f9fafb; padding: 16px 16px 16px 36px; border-radius: 8px; border: 1px solid #f3f4f6; font-size: 16px;">
+                ${coursesHtml}
+              </ul>
+
+              <p>Please ensure you attend the remaining classes to avoid consequences at the end of the semester.</p>
+              <br>
+              <p style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 12px;">This is an automated message from A.E.G.I.S. Please do not reply.</p>
+            </div>
+          `
+        };
+
+        try {
+          await transporter.sendMail(mailOptions);
+          await EmailLog.create({ email, courseIds: alertCourseIds });
+          sentInThisRun++;
+          quotaRemaining--;
+          
+          // 2-second rate-limit throttle to avoid Gmail spam blocks
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (mailErr) {
+          console.error(`[MAILER] Failed to send to ${email}:`, mailErr.message);
+        }
+      }
+    }
+    
+    if (sentInThisRun > 0) console.log(`[MAILER] Sent ${sentInThisRun} consolidated alerts.`);
+
+  } catch (err) {
+    console.error('[MAILER] Job error:', err);
+  }
+}
 
 // ==========================================
 // START SERVER
@@ -1597,6 +1900,11 @@ app.listen(PORT, '0.0.0.0', () => {
 
     // [Performance] Flush attendance buffer to database every 3 seconds
     setInterval(flushAttendanceBuffer, 3000);
+
+    // [Background Jobs] Run email evaluation every 6 hours
+    setInterval(runAttendanceEmailJob, 6 * 60 * 60 * 1000);
+    // Also run once 2 minutes after server boot to catch up logs
+    setTimeout(runAttendanceEmailJob, 2 * 60 * 1000);
   });
 });
 
