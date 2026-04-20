@@ -400,7 +400,7 @@ app.use(cors({
     // Mobile apps (React Native) don't send Origin header — always allowed
     if (!origin) return callback(null, true);
     const allowed = [
-      process.env.RENDER_EXTERNAL_URL || 'https://attendance-server-ddgs.onrender.com',
+      process.env.RENDER_EXTERNAL_URL || 'https://aegis-server-02y5.onrender.com',
       'http://localhost:3000',
       'http://localhost:8081',
     ];
@@ -1874,7 +1874,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('');
 
   if (!process.env.RENDER_EXTERNAL_URL) {
-    process.env.RENDER_EXTERNAL_URL = 'https://attendance-server-ddgs.onrender.com';
+    process.env.RENDER_EXTERNAL_URL = 'https://aegis-server-02y5.onrender.com';
   }
 
   // Connect to MongoDB in background (HTTP server already running)
