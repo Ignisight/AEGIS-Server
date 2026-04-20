@@ -21,31 +21,7 @@ const jsQR = require('jsqr');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const archiver = require('archiver');
-const winston = require('winston');
-
-// [OBSERVABILITY] Structured Logging Pipeline
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize({ all: true }),
-        winston.format.printf(info => `[${info.timestamp}] ${info.level}: ${info.message}`)
-      )
-    }),
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    // Optimized: Only store critical errors in the production file to save memory/storage
-  ]
-});
-
-// For an immediate, global win on structured logs across this monolithic file
-console.log = (...args) => logger.info(args.join(' '));
-console.error = (...args) => logger.error(args.join(' '));
-console.warn = (...args) => logger.warn(args.join(' '));
+// We will use native console.log since Render handles timestamping and log rotation automatically.
 
 const fsFilters = require('fs');
 if (!fsFilters.existsSync('./logs')) {
