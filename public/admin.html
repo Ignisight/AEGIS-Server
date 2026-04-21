@@ -259,12 +259,12 @@
             </div>
           </div>
 
-          <!-- ── PER-COURSE ENROLLMENT TABLE ── -->
+          <!-- ── ENROLLMENT INSPECTOR ── -->
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
-                <h2 class="text-2xl font-bold">📋 Single Course Enrollments</h2>
-                <p class="text-slate-400 text-sm mt-1">View or remove individual student enrollments per course.</p>
+                <h2 class="text-2xl font-bold">🔍 Enrollment Inspector</h2>
+                <p class="text-slate-400 text-sm mt-1">Audit or remove individual student links from specific courses.</p>
               </div>
               <div class="flex gap-3 items-center">
                 <select id="enr-course" onchange="loadEnrollments()" class="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-5 py-2.5 rounded-2xl font-bold outline-none text-sm">
@@ -356,8 +356,78 @@
     </div>
   </div>
 
+  <!-- MODAL: CREATE GROUP -->
+  <div id="modal-create-group" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="closeModal('create-group')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <h3 class="text-2xl font-bold mb-6">Create Course Group</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Group Name (e.g. CSE 2nd Year)</label>
+          <input id="group-name-input" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold" placeholder="Enter folder name...">
+        </div>
+        <button onclick="confirmCreateGroup()" class="w-full bg-indigo-600 font-bold py-4 rounded-2xl mt-2">Initialize Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PROVISION TEACHER -->
+  <div id="modal-teacher" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="closeModal('teacher')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <h3 class="text-2xl font-bold mb-6">Provision Faculty</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Full Nomenclature</label>
+          <input id="t-name" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold" placeholder="e.g. Dr. Jane Doe">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Verified Email Address</label>
+          <input id="t-email" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold" placeholder="faculty@university.edu">
+        </div>
+        <button onclick="confirmAddTeacher()" class="w-full bg-indigo-600 font-bold py-4 rounded-2xl mt-2">Authorize Access</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GENERIC CONFIRMATION -->
+  <div id="modal-confirm" class="hidden fixed inset-0 z-[120] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-sm p-8 rounded-[40px] shadow-2xl relative fade-in border-rose-500/20">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">⚠️</div>
+        <h3 id="confirm-title" class="text-xl font-bold mb-2">Are you sure?</h3>
+        <p id="confirm-msg" class="text-slate-400 text-sm mb-8">This action may be irreversible.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="closeModal('confirm')" class="bg-white/5 hover:bg-white/10 font-bold py-3 rounded-xl transition">Cancel</button>
+          <button id="confirm-btn" class="bg-rose-600 hover:bg-rose-500 font-bold py-3 rounded-xl shadow-lg shadow-rose-500/20 transition">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD COURSE TO GROUP -->
+  <div id="modal-group-course" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="closeModal('group-course')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <h3 class="text-2xl font-bold mb-2">Add Course to Group</h3>
+      <p id="modal-group-course-name" class="text-slate-400 text-sm mb-6"></p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Select Course</label>
+          <select id="gcourse-select" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold">
+            <option value="">-- Choose a course --</option>
+          </select>
+        </div>
+        <button onclick="confirmAddCourseToGroup()" class="w-full bg-indigo-600 font-bold py-4 rounded-2xl mt-2">Add to Group</button>
+        <p id="gcourse-msg" class="text-center text-xs font-bold"></p>
+      </div>
+    </div>
+  </div>
+
+
   <script>
-    let authUser = localStorage.getItem('adminUser') || '', authPass = localStorage.getItem('adminPass') || '', currentTab = 'monitoring', branchChart, hourlyChart, allTeachers = [], allStudents = [], renderedStudents = [], allCourses = [], allAssignments = [];
+    let authUser = localStorage.getItem('adminUser') || '', authPass = localStorage.getItem('adminPass') || '', currentTab = 'monitoring', branchChart, hourlyChart, allTeachers = [], allStudents = [], renderedStudents = [], allCourses = [], allAssignments = [], allDepts = [], currentGroupId = null;
+
     const H = () => ({ 'Content-Type':'application/json', 'x-admin-user':authUser, 'x-admin-password':authPass });
     
     if (authUser && authPass) { showDashboard(); fetchStats(); }
@@ -515,7 +585,7 @@
       // Defaulters panel - only courses that HAVE defaulters
       const coursesWithDefaulters = report.filter(c => c.defaulterCount > 0);
       if (!coursesWithDefaulters.length) {
-        panel.innerHTML = '<div class="text-center py-12"><div class="text-4xl mb-3">✅</div><div class="text-emerald-400 font-bold">All enrolled students are above 75%!</div></div>';
+      panel.innerHTML = '<div class="text-center py-12"><div class="text-4xl mb-3">✅</div><div class="text-emerald-400 font-bold">All enrolled students are above the threshold!</div></div>';
         return;
       }
 
@@ -577,6 +647,16 @@
         rightGroup.innerHTML = `<button onclick="massDeleteStudents()" id="massBtn" class="text-rose-400 font-bold text-xs bg-rose-500/5 border border-rose-500/10 px-4 py-2 rounded-xl">Wipe Matched Hardware</button>`;
         populateStudentFilters(); applyStudentFilters();
       }
+    }
+
+    async function massDeleteStudents() {
+      if (!renderedStudents.length) return;
+      askConfirm('Wipe Bindings?', `Permanently wipe hardware bindings for ${renderedStudents.length} matched students? This CANNOT be undone.`, async () => {
+        for (const s of renderedStudents) {
+          await fetch(`/admin-api/student/${encodeURIComponent(s.email)}`, { method: 'DELETE', headers: H() });
+        }
+        fetchData();
+      });
     }
 
     function renderTeachers(approvedList) {
@@ -685,9 +765,10 @@
     }
 
     async function removeAssignment(id) {
-      if (!confirm('Remove this assignment?')) return;
-      await fetch(`/admin-api/teacher-courses/${id}`, { method:'DELETE', headers:H() });
-      fetchAssignmentsView();
+      askConfirm('Destroy Linkage?', 'This will decouple the teacher from this subject.', async () => {
+        await fetch(`/admin-api/teacher-courses/${id}`, { method:'DELETE', headers:H() });
+        fetchAssignmentsView();
+      });
     }
 
     // ── COURSE GROUPS (FOLDERS) ───────────────────────────────────────────────
@@ -738,36 +819,56 @@
     }
 
     function openCreateGroupModal() {
-      const name = prompt('Enter a name for this group (e.g. "CSE 2nd Year", "AI Section A"):');
-      if (!name || !name.trim()) return;
-      createGroup(name.trim());
+      document.getElementById('group-name-input').value = '';
+      openModal('create-group');
     }
 
-    async function createGroup(name) {
+    async function confirmCreateGroup() {
+      const name = document.getElementById('group-name-input').value.trim();
+      if (!name) return;
       const res = await fetch('/admin-api/course-groups', { method: 'POST', headers: H(), body: JSON.stringify({ name }) });
       const data = await res.json();
-      if (data.success) { allGroups.unshift(data.group); renderGroups(); }
+      if (data.success) { allGroups.unshift(data.group); renderGroups(); closeModal('create-group'); }
       else alert('Error: ' + data.error);
     }
 
     async function deleteGroup(id, name) {
-      if (!confirm(`Delete group "${name}"? This does NOT remove student enrollments, only the group folder.`)) return;
-      const res = await fetch(`/admin-api/course-groups/${id}`, { method: 'DELETE', headers: H() });
-      const data = await res.json();
-      if (data.success) { allGroups = allGroups.filter(g => g._id !== id); renderGroups(); }
+      askConfirm(`Delete "${name}"?`, 'The students will remain enrolled in individual courses. Only the group folder is destroyed.', async () => {
+        const res = await fetch(`/admin-api/course-groups/${id}`, { method: 'DELETE', headers: H() });
+        const data = await res.json();
+        if (data.success) { allGroups = allGroups.filter(g => g._id !== id); renderGroups(); }
+      });
     }
 
-    function openAddCourseToGroup(groupId) {
-      const courseId = prompt('Enter the Course ID to add to this group (e.g. CS301):');
-      if (!courseId || !courseId.trim()) return;
-      addCourseToGroup(groupId, courseId.trim().toUpperCase());
+    async function openAddCourseToGroup(groupId) {
+      currentGroupId = groupId;
+      const group = allGroups.find(g => g._id === groupId);
+      document.getElementById('modal-group-course-name').textContent = `Folder: ${group ? group.name : ''}`;
+      document.getElementById('gcourse-msg').textContent = '';
+
+      // Build dropdown from allCourses, excluding already-added ones
+      const already = group ? group.courseIds : [];
+      const select = document.getElementById('gcourse-select');
+      const fresh = allCourses.filter(c => !already.includes(c.courseId));
+      select.innerHTML = '<option value="">-- Choose a course --</option>' +
+          fresh.map(c => `<option value="${c.courseId}">${c.courseId} — ${c.name}</option>`).join('');
+      openModal('group-course');
     }
 
-    async function addCourseToGroup(groupId, courseId) {
-      const res = await fetch(`/admin-api/course-groups/${groupId}/add-course`, { method: 'PATCH', headers: H(), body: JSON.stringify({ courseId }) });
+    async function confirmAddCourseToGroup() {
+      const courseId = document.getElementById('gcourse-select').value;
+      const msg = document.getElementById('gcourse-msg');
+      if (!courseId) { msg.textContent = 'Please select a course'; msg.className = 'text-rose-400'; return; }
+      const res = await fetch(`/admin-api/course-groups/${currentGroupId}/add-course`, { method: 'PATCH', headers: H(), body: JSON.stringify({ courseId }) });
       const data = await res.json();
-      if (data.success) { allGroups = allGroups.map(g => g._id === groupId ? data.group : g); renderGroups(); }
-      else alert('Error: ' + data.error);
+      if (data.success) {
+        allGroups = allGroups.map(g => g._id === currentGroupId ? data.group : g);
+        closeModal('group-course');
+        renderGroups();
+      } else {
+        msg.textContent = data.error;
+        msg.className = 'text-rose-400';
+      }
     }
 
     async function removeCourseFromGroup(groupId, courseId) {
@@ -825,22 +926,6 @@
       }).join('');
     }
 
-    // ── HELPERS & FORM ACTIONS ──────────────────────────────────────────────
-    function handleFileSelected() { document.getElementById('enr-file-label').textContent = document.getElementById('enr-file').files[0]?.name || 'File Selected'; }
-    
-    async function uploadEnrollments() {
-      const courseId = document.getElementById('enr-course').value, file = document.getElementById('enr-file').files[0], btn = document.getElementById('enr-upload-btn'), msg = document.getElementById('enr-msg');
-      if (!courseId || !file) return;
-      btn.disabled = true; btn.textContent = 'TRANSMITTING...';
-      const fd = new FormData(); fd.append('courseId', courseId); fd.append('file', file);
-      const res = await fetch('/admin-api/enrollments/upload', { method:'POST', headers:{'x-admin-user':authUser,'x-admin-password':authPass}, body:fd });
-      const data = await res.json();
-      btn.disabled = false; btn.textContent = 'Process Batch';
-      msg.textContent = data.success ? 'Success: ' + data.inserted + ' records linked' : 'Batch Error';
-      msg.className = data.success ? 'text-emerald-500' : 'text-rose-500';
-      if(data.success) { document.getElementById('enr-file').value = ''; loadEnrollments(); }
-    }
-
     async function addDept() {
       const deptId=document.getElementById('d-id').value.trim(), name=document.getElementById('d-name').value.trim(), m=document.getElementById('d-msg');
       const res=await fetch('/admin-api/departments',{method:'POST',headers:H(),body:JSON.stringify({deptId,name})});
@@ -857,16 +942,65 @@
       else{ m.textContent = d.error; m.className = 'text-rose-400'; }
     }
 
-    function openTeacherDialog() { const n=prompt("Enter Teacher Full Name:"), e=prompt("Enter Teacher Verified Email:"); if(n&&e) submitTeacher(n,e); }
-    async function submitTeacher(name, email) { await fetch('/admin-api/approved-teachers', { method:'POST', headers:H(), body:JSON.stringify({name,email}) }); fetchData(); }
-    
-    function openAssignmentDialog() { switchTab('assignments-custom'); /* OR SIMPLE PROMPTS */ }
-    async function deleteDept(id) { if(confirm("Destroy Department and all children?")) { await fetch(`/admin-api/departments/${id}`, {method:'DELETE', headers:H()}); fetchDepartmentsView(); } }
-    async function deleteCourse(id) { if(confirm("Destroy Subject?")) { await fetch(`/admin-api/courses/${id}`, {method:'DELETE', headers:H()}); fetchCoursesView(); } }
-    async function deleteX(t,e) { if(confirm("Destroy Link?")) { await fetch(`/admin-api/${t}/${encodeURIComponent(e)}`, {method:'DELETE', headers:H()}); switchTab(currentTab); } }
-    async function revokeTeacher(e) { if(confirm("Revoke verified access?")) { await fetch(`/admin-api/approved-teachers/${encodeURIComponent(e)}`, {method:'DELETE', headers:H()}); fetchData(); } }
-    async function removeEnrollment(c,e) { await fetch(`/admin-api/enrollments/${encodeURIComponent(c)}/${encodeURIComponent(e)}`, {method:'DELETE', headers:H()}); loadEnrollments(); }
-    async function clearEnrollments() { const c=document.getElementById('enr-course').value; if(confirm("Flush batch?")) { await fetch(`/admin-api/enrollments/${encodeURIComponent(c)}`, {method:'DELETE', headers:H()}); loadEnrollments(); } }
+    function openTeacherDialog() {
+      document.getElementById('t-name').value = '';
+      document.getElementById('t-email').value = '';
+      openModal('teacher');
+    }
+    async function confirmAddTeacher() {
+      const name = document.getElementById('t-name').value.trim();
+      const email = document.getElementById('t-email').value.trim();
+      if (!name || !email) return;
+      await fetch('/admin-api/approved-teachers', { method:'POST', headers:H(), body:JSON.stringify({name,email}) });
+      closeModal('teacher');
+      fetchData();
+    }
+
+    async function deleteDept(id) {
+      askConfirm('Destroy Department?', 'This will permanently remove the department and all its children.', async () => {
+        await fetch(`/admin-api/departments/${id}`, {method:'DELETE', headers:H()});
+        fetchDepartmentsView();
+      });
+    }
+    async function deleteCourse(id) {
+      askConfirm('Destroy Subject?', 'This will remove the course from the catalog.', async () => {
+        await fetch(`/admin-api/courses/${id}`, {method:'DELETE', headers:H()});
+        fetchCoursesView();
+      });
+    }
+    async function deleteX(t,e) {
+      askConfirm('Sever Link?', 'This will reset the student\'s device binding.', async () => {
+        await fetch(`/admin-api/${t}/${encodeURIComponent(e)}`, {method:'DELETE', headers:H()});
+        switchTab(currentTab);
+      });
+    }
+    async function revokeTeacher(e) {
+      askConfirm('Revoke Faculty?', 'This teacher will no longer be able to log in or start sessions.', async () => {
+        await fetch(`/admin-api/approved-teachers/${encodeURIComponent(e)}`, {method:'DELETE', headers:H()});
+        fetchData();
+      });
+    }
+    async function removeEnrollment(c,e) {
+      askConfirm('Unlink Student?', 'Remove this student from the course enrollment.', async () => {
+        await fetch(`/admin-api/enrollments/${encodeURIComponent(c)}/${encodeURIComponent(e)}`, {method:'DELETE', headers:H()});
+        loadEnrollments();
+      });
+    }
+    async function clearEnrollments() {
+      const c = document.getElementById('enr-course').value;
+      askConfirm('Flush Course?', 'This will remove ALL students from this course.', async () => {
+        await fetch(`/admin-api/enrollments/${encodeURIComponent(c)}`, {method:'DELETE', headers:H()});
+        loadEnrollments();
+      });
+    }
+
+    function askConfirm(title, msg, onOk) {
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-msg').textContent = msg;
+      const btn = document.getElementById('confirm-btn');
+      btn.onclick = () => { onOk(); closeModal('confirm'); };
+      openModal('confirm');
+    }
 
   </script>
 </body>
