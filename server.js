@@ -297,6 +297,23 @@ const EmailLogSchema = new mongoose.Schema({
 });
 const EmailLog = mongoose.model('EmailLog', EmailLogSchema);
 
+// Admin-configurable Settings (key-value store)
+const SettingSchema = new mongoose.Schema({
+  key: { type: String, required: true, unique: true },
+  value: { type: mongoose.Schema.Types.Mixed, required: true },
+  updatedAt: { type: Date, default: Date.now },
+});
+const Setting = mongoose.model('Setting', SettingSchema);
+
+async function getSetting(key, defaultValue) {
+  const doc = await Setting.findOne({ key });
+  return doc ? doc.value : defaultValue;
+}
+
+async function setSetting(key, value) {
+  await Setting.findOneAndUpdate({ key }, { value, updatedAt: new Date() }, { upsert: true });
+}
+
 // Location Events (student entry/exit flips — retained 7 days)
 const LocationEventSchema = new mongoose.Schema({
   email: { type: String, required: true, lowercase: true, index: true },
@@ -1296,74 +1313,85 @@ app.get('/admin-api/data', async (req, res) => {
   }
 });
 
+// ── Admin: Settings ──────────────────────────────────────────────────────────
+app.get('/admin-api/settings', async (req, res) => {
+  try {
+    const threshold = await getSetting('attendanceThreshold', 75);
+    res.json({ success: true, settings: { attendanceThreshold: threshold } });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.post('/admin-api/settings', express.json(), async (req, res) => {
+  try {
+    const { attendanceThreshold } = req.body;
+    if (attendanceThreshold !== undefined) {
+      const val = parseInt(attendanceThreshold);
+      if (isNaN(val) || val < 1 || val > 100)
+        return res.json({ success: false, error: 'Threshold must be between 1 and 100' });
+      await setSetting('attendanceThreshold', val);
+      cachedAttendanceReport = null; // bust cache so next fetch uses new threshold
+    }
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
 // ── Admin: Attendance Report (per-course defaulter tracking) ──────────────────
 let cachedAttendanceReport = null;
 let lastAttendanceReportFetch = 0;
 
 app.get('/admin-api/attendance-report', async (req, res) => {
   try {
-    const CACHE_TTL = 3 * 60 * 1000; // 3-minute cache
+    const CACHE_TTL = 3 * 60 * 1000;
     if (cachedAttendanceReport && (Date.now() - lastAttendanceReportFetch < CACHE_TTL)) {
       return res.json({ success: true, report: cachedAttendanceReport, cached: true });
     }
 
+    const threshold = await getSetting('attendanceThreshold', 75);
     const courses = await Course.find({}).sort({ courseId: 1 });
     const report = [];
 
     for (const course of courses) {
       const { courseId, name: courseName } = course;
-
-      // Find all completed sessions for this course (name starts with courseId)
       const sessions = await Session.find({
         name: new RegExp(`^${courseId}\\s*[-–]`, 'i'),
         stoppedAt: { $ne: null }
       }, { sessionId: 1 });
 
       const totalSessions = sessions.length;
-      if (totalSessions === 0) continue; // skip courses with no sessions yet
+      if (totalSessions === 0) continue;
 
       const sessionIds = sessions.map(s => s.sessionId);
-
-      // Get all enrolled students for this course
       const enrollments = await StudentCourse.find({ courseId }, { email: 1 });
-      if (!enrollments.length) continue; // skip courses with no enrolled students
+      if (!enrollments.length) continue;
 
-      const passing = [];
-      const defaulters = [];
-
+      const passing = [], defaulters = [];
       for (const { email } of enrollments) {
         const attended = await Attendance.countDocuments({ email, sessionId: { $in: sessionIds } });
         const percentage = Math.round((attended / totalSessions) * 100);
         const record = { email, attended, totalSessions, percentage };
-        if (percentage < 75) defaulters.push(record);
+        if (percentage < threshold) defaulters.push(record);
         else passing.push(record);
       }
-
-      // Sort defaulters worst-first
       defaulters.sort((a, b) => a.percentage - b.percentage);
 
       report.push({
-        courseId,
-        courseName,
-        totalSessions,
+        courseId, courseName, totalSessions,
         totalEnrolled: enrollments.length,
         defaulterCount: defaulters.length,
         passingCount: passing.length,
+        threshold,
         avgAttendance: Math.round(
           (passing.reduce((s, r) => s + r.percentage, 0) + defaulters.reduce((s, r) => s + r.percentage, 0)) /
           enrollments.length
         ),
-        defaulters,
-        passing,
+        defaulters, passing,
       });
     }
 
     cachedAttendanceReport = report;
     lastAttendanceReportFetch = Date.now();
-    res.json({ success: true, report });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
+    res.json({ success: true, report, threshold });
+  } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
 let cachedStats = null;

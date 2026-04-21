@@ -176,12 +176,20 @@
 
           <!-- ── COURSE ATTENDANCE SUMMARY STRIP ── -->
           <div class="glass p-8 rounded-[40px] space-y-6">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 class="text-xl font-bold">📊 Course Attendance Overview</h3>
-                <p class="text-slate-400 text-sm mt-1">Live snapshot of attendance % per course. Red = defaulters present.</p>
+                <p class="text-slate-400 text-sm mt-1">Live snapshot of attendance % per course. Click a card to jump to its defaulters.</p>
               </div>
-              <button onclick="fetchAttendanceReport(true)" class="text-indigo-400 text-xs font-bold border border-indigo-500/20 px-4 py-2 rounded-xl hover:bg-indigo-500/5 transition">↺ Refresh</button>
+              <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 glass-card px-4 py-2 rounded-2xl">
+                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Threshold</label>
+                  <input id="att-threshold-input" type="number" min="1" max="100" value="75" class="w-14 bg-transparent text-indigo-400 font-black text-lg text-center outline-none" />
+                  <span class="text-slate-500 font-bold">%</span>
+                  <button onclick="saveThreshold()" class="text-[10px] font-bold text-indigo-400 border border-indigo-500/30 px-2 py-1 rounded-lg hover:bg-indigo-500/10 transition">Save</button>
+                </div>
+                <button onclick="fetchAttendanceReport(true)" class="text-indigo-400 text-xs font-bold border border-indigo-500/20 px-4 py-2 rounded-xl hover:bg-indigo-500/5 transition">↺ Refresh</button>
+              </div>
             </div>
             <div id="att-summary-strip" class="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div class="text-center text-slate-600 py-6 col-span-4 text-sm">Loading course data...</div>
@@ -445,19 +453,30 @@
     async function fetchAttendanceReport(forceRefresh = false) {
       const strip = document.getElementById('att-summary-strip');
       const panel = document.getElementById('att-defaulters-panel');
-      const badge = document.getElementById('att-total-defaulters');
       strip.innerHTML = '<div class="text-center text-slate-600 py-6 col-span-4 text-sm">Calculating...</div>';
       panel.innerHTML = '<div class="text-center text-slate-600 py-6 text-sm">Calculating...</div>';
 
-      const url = forceRefresh ? '/admin-api/attendance-report?force=1' : '/admin-api/attendance-report';
-      const res = await fetch(url, { headers: H() });
+      const res = await fetch('/admin-api/attendance-report', { headers: H() });
       const data = await res.json();
       if (!data.success) {
         strip.innerHTML = `<div class="text-rose-400 col-span-4 text-sm">${data.error}</div>`;
         return;
       }
+      // Sync threshold input with server-stored value
+      if (data.threshold !== undefined) {
+        document.getElementById('att-threshold-input').value = data.threshold;
+      }
       lastAttReport = data.report;
       renderAttendanceReport(data.report);
+    }
+
+    async function saveThreshold() {
+      const val = parseInt(document.getElementById('att-threshold-input').value);
+      if (isNaN(val) || val < 1 || val > 100) { alert('Enter a number between 1 and 100'); return; }
+      const res = await fetch('/admin-api/settings', { method: 'POST', headers: H(), body: JSON.stringify({ attendanceThreshold: val }) });
+      const data = await res.json();
+      if (data.success) fetchAttendanceReport(true);
+      else alert('Error saving: ' + data.error);
     }
 
     function renderAttendanceReport(report) {
@@ -506,7 +525,7 @@
             <div class="flex items-center gap-3">
               <span class="text-rose-400 font-black text-lg">${c.courseId}</span>
               <span class="text-slate-400 text-sm">${c.courseName}</span>
-              <span class="text-[10px] font-bold bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full">${c.defaulterCount} of ${c.totalEnrolled} students</span>
+              <span class="text-[10px] font-bold bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full">${c.defaulterCount} of ${c.totalEnrolled} students below ${c.threshold}%</span>
             </div>
             <span class="text-slate-500 text-[10px] font-bold">${c.totalSessions} sessions held</span>
           </div>
@@ -520,21 +539,17 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-white/5">
-              ${c.defaulters.map(d => {
-                const pct = d.percentage;
-                const color = pct < 50 ? 'text-rose-500' : 'text-amber-400';
-                const tag = pct < 50 ? '🔴 Critical' : '🟡 Warning';
-                return `<tr class="hover:bg-white/2 transition">
-                  <td class="px-6 py-3 font-bold text-sm">${d.email}</td>
-                  <td class="px-6 py-3 text-slate-400 text-sm font-mono">${d.attended} / ${d.totalSessions}</td>
-                  <td class="px-6 py-3"><span class="${color} font-black text-lg">${pct}%</span></td>
-                  <td class="px-6 py-3"><span class="text-[10px] font-bold">${tag}</span></td>
-                </tr>`;
-              }).join('')}
+              ${c.defaulters.map(d => `<tr class="hover:bg-white/2 transition">
+                <td class="px-6 py-3 font-bold text-sm">${d.email}</td>
+                <td class="px-6 py-3 text-slate-400 text-sm font-mono">${d.attended} / ${d.totalSessions}</td>
+                <td class="px-6 py-3"><span class="text-rose-400 font-black text-lg">${d.percentage}%</span></td>
+                <td class="px-6 py-3"><span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">⚠️ Defaulter</span></td>
+              </tr>`).join('')}
             </tbody>
           </table>
         </div>
       `).join('');
+
     }
 
     function scrollToDefaulterCourse(courseId) {
