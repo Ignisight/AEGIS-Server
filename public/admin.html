@@ -205,50 +205,61 @@
         </div>
 
         <!-- SPECIAL VIEWS (Enrollments, Email Logs, etc) -->
-        <div id="enrollmentsPanel" class="hidden fade-in space-y-6">
-          <div class="glass p-8 rounded-[40px] flex flex-col md:flex-row items-center gap-10">
-            <div class="flex-1 space-y-4">
-              <h2 class="text-3xl font-bold">Manage Enrollment</h2>
-              <p class="text-slate-400 text-sm leading-relaxed">Select a learning module to view or update current student registrations. Use the Excel bridge to bulk process large batches.</p>
-              <div class="flex gap-4">
-                <select id="enr-course" onchange="loadEnrollments()" class="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-6 py-3 rounded-2xl font-bold outline-none">
+        <div id="enrollmentsPanel" class="hidden fade-in space-y-8">
+
+          <!-- ── COURSE GROUPS (FOLDERS) ── -->
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-2xl font-bold">📁 Course Groups</h2>
+                <p class="text-slate-400 text-sm mt-1">Create a folder, add courses to it, then upload one Excel file to enroll students into <em>all</em> courses at once.</p>
+              </div>
+              <button onclick="openCreateGroupModal()" class="bg-indigo-600 hover:bg-indigo-700 transition px-5 py-2.5 rounded-xl font-bold text-sm">+ New Group</button>
+            </div>
+
+            <div id="groupsList" class="space-y-4">
+              <div class="text-center text-slate-600 py-8">Loading groups...</div>
+            </div>
+          </div>
+
+          <!-- ── PER-COURSE ENROLLMENT TABLE ── -->
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h2 class="text-2xl font-bold">📋 Single Course Enrollments</h2>
+                <p class="text-slate-400 text-sm mt-1">View or remove individual student enrollments per course.</p>
+              </div>
+              <div class="flex gap-3 items-center">
+                <select id="enr-course" onchange="loadEnrollments()" class="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-5 py-2.5 rounded-2xl font-bold outline-none text-sm">
                   <option value="">Select Course</option>
                 </select>
-                <div class="px-6 py-3 rounded-2xl border border-white/10 flex items-center gap-4">
-                  <span class="text-xs font-bold text-slate-500">QUOTA</span>
-                  <span id="enr-count" class="text-xl font-bold">0</span>
+                <div class="px-4 py-2.5 rounded-2xl border border-white/10 flex items-center gap-3">
+                  <span class="text-[10px] font-bold text-slate-500">ENROLLED</span>
+                  <span id="enr-count" class="text-lg font-bold">0</span>
                 </div>
               </div>
             </div>
-            <div class="w-full md:w-80 glass-card p-6 rounded-3xl space-y-4">
-              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Batch Import</span>
-              <input type="file" id="enr-file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleFileSelected()">
-              <label for="enr-file" class="block w-full text-center py-4 rounded-xl border border-dashed border-indigo-500/40 hover:bg-indigo-500/5 cursor-pointer transition-all">
-                <span class="text-indigo-400 text-sm font-bold" id="enr-file-label">Drop Excel File</span>
-              </label>
-              <button onclick="uploadEnrollments()" id="enr-upload-btn" class="w-full bg-indigo-600 font-bold py-3.5 rounded-xl">Process Batch</button>
-              <div id="enr-msg" class="text-[10px] text-center font-bold uppercase py-1"></div>
+
+            <div id="enr-stats" class="hidden flex justify-end">
+              <button onclick="clearEnrollments()" class="text-rose-400 font-bold text-xs border border-rose-500/20 px-4 py-2 rounded-xl hover:bg-rose-500/5">DELETE ENTIRE BATCH</button>
+            </div>
+
+            <div class="glass-card rounded-[32px] overflow-hidden">
+              <table class="w-full text-left">
+                <thead class="bg-slate-900/40 border-b border-white/5">
+                  <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <th class="px-8 py-5">Identity</th>
+                    <th class="px-8 py-5">Academic Path</th>
+                    <th class="px-8 py-5">Signed On</th>
+                    <th class="px-8 py-5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="enrBody" class="divide-y divide-white/5"></tbody>
+              </table>
+              <div id="enrEmpty" class="py-24 text-center text-slate-600 font-bold">Select a course above</div>
             </div>
           </div>
-          
-          <div id="enr-stats" class="hidden flex justify-end">
-            <button onclick="clearEnrollments()" class="text-rose-400 font-bold text-xs border border-rose-500/20 px-4 py-2 rounded-xl hover:bg-rose-500/5">DELETE ENTIRE BATCH</button>
-          </div>
 
-          <div class="glass-card rounded-[40px] overflow-hidden">
-            <table class="w-full text-left">
-              <thead class="bg-slate-900/40 border-b border-white/5">
-                <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  <th class="px-8 py-5">Identity</th>
-                  <th class="px-8 py-5">Academic Path</th>
-                  <th class="px-8 py-5">Signed On</th>
-                  <th class="px-8 py-5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody id="enrBody" class="divide-y divide-white/5"></tbody>
-            </table>
-            <div id="enrEmpty" class="py-24 text-center text-slate-600 font-bold">Select target module above</div>
-          </div>
         </div>
 
       </div>
@@ -360,7 +371,7 @@
       else if (tab === 'departments') fetchDepartmentsView();
       else if (tab === 'courses') fetchCoursesView();
       else if (tab === 'assignments') fetchAssignmentsView();
-      else if (tab === 'enrollments') fetchEnrollmentCourses();
+      else if (tab === 'enrollments') { fetchGroups(); fetchEnrollmentCourses(); }
       else if (tab === 'email-logs') fetchEmailLogs();
     }
 
@@ -532,7 +543,113 @@
       fetchAssignmentsView();
     }
 
-    // ── ENROLLMENTS (already has its own unique view) ─────────────────────────
+    // ── COURSE GROUPS (FOLDERS) ───────────────────────────────────────────────
+    let allGroups = [], activeGroupId = null;
+
+    async function fetchGroups() {
+      const res = await fetch('/admin-api/course-groups', { headers: H() });
+      const data = await res.json();
+      allGroups = data.groups || [];
+      renderGroups();
+    }
+
+    function renderGroups() {
+      const container = document.getElementById('groupsList');
+      if (!allGroups.length) {
+        container.innerHTML = '<div class="text-center text-slate-600 py-10">No groups yet. Create one with the button above.</div>';
+        return;
+      }
+      container.innerHTML = allGroups.map(g => `
+        <div class="glass-card rounded-3xl p-6 space-y-4" id="group-${g._id}">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-3">
+                <span class="text-xl">📁</span>
+                <h3 class="text-lg font-bold">${g.name}</h3>
+                <span class="text-[10px] font-bold bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full">${g.courseIds.length} courses</span>
+              </div>
+              <div class="flex flex-wrap gap-2 mt-3">
+                ${g.courseIds.map(cId => `<span class="flex items-center gap-1 text-xs bg-white/5 border border-white/10 px-3 py-1 rounded-full font-mono">${cId}<button onclick="removeCourseFromGroup('${g._id}','${cId}')" class="text-rose-400 hover:text-rose-300 ml-1 font-bold">×</button></span>`).join('') || '<span class="text-slate-600 text-sm">No courses added yet</span>'}
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="openAddCourseToGroup('${g._id}')" class="text-xs bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl font-bold transition">+ Course</button>
+              <button onclick="deleteGroup('${g._id}','${g.name}')" class="text-xs text-rose-400 border border-rose-500/20 hover:bg-rose-500/5 px-3 py-1.5 rounded-xl font-bold transition">Delete</button>
+            </div>
+          </div>
+          <div class="border-t border-white/5 pt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bulk Enroll via Excel:</label>
+            <input type="file" id="gfile-${g._id}" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleGroupFileSelected('${g._id}')">
+            <label for="gfile-${g._id}" class="cursor-pointer text-xs border border-dashed border-indigo-500/40 hover:bg-indigo-500/5 px-4 py-2 rounded-xl text-indigo-400 font-bold transition">
+              <span id="gfile-label-${g._id}">📄 Choose Excel File</span>
+            </label>
+            <button onclick="uploadGroupEnrollment('${g._id}')" class="bg-indigo-600 hover:bg-indigo-700 transition text-xs px-5 py-2 rounded-xl font-bold">Enroll into All Courses</button>
+            <span id="gmsg-${g._id}" class="text-[10px] font-bold"></span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openCreateGroupModal() {
+      const name = prompt('Enter a name for this group (e.g. "CSE 2nd Year", "AI Section A"):');
+      if (!name || !name.trim()) return;
+      createGroup(name.trim());
+    }
+
+    async function createGroup(name) {
+      const res = await fetch('/admin-api/course-groups', { method: 'POST', headers: H(), body: JSON.stringify({ name }) });
+      const data = await res.json();
+      if (data.success) { allGroups.unshift(data.group); renderGroups(); }
+      else alert('Error: ' + data.error);
+    }
+
+    async function deleteGroup(id, name) {
+      if (!confirm(`Delete group "${name}"? This does NOT remove student enrollments, only the group folder.`)) return;
+      const res = await fetch(`/admin-api/course-groups/${id}`, { method: 'DELETE', headers: H() });
+      const data = await res.json();
+      if (data.success) { allGroups = allGroups.filter(g => g._id !== id); renderGroups(); }
+    }
+
+    function openAddCourseToGroup(groupId) {
+      const courseId = prompt('Enter the Course ID to add to this group (e.g. CS301):');
+      if (!courseId || !courseId.trim()) return;
+      addCourseToGroup(groupId, courseId.trim().toUpperCase());
+    }
+
+    async function addCourseToGroup(groupId, courseId) {
+      const res = await fetch(`/admin-api/course-groups/${groupId}/add-course`, { method: 'PATCH', headers: H(), body: JSON.stringify({ courseId }) });
+      const data = await res.json();
+      if (data.success) { allGroups = allGroups.map(g => g._id === groupId ? data.group : g); renderGroups(); }
+      else alert('Error: ' + data.error);
+    }
+
+    async function removeCourseFromGroup(groupId, courseId) {
+      const res = await fetch(`/admin-api/course-groups/${groupId}/remove-course`, { method: 'PATCH', headers: H(), body: JSON.stringify({ courseId }) });
+      const data = await res.json();
+      if (data.success) { allGroups = allGroups.map(g => g._id === groupId ? data.group : g); renderGroups(); }
+    }
+
+    function handleGroupFileSelected(groupId) {
+      const file = document.getElementById(`gfile-${groupId}`).files[0];
+      if (file) document.getElementById(`gfile-label-${groupId}`).textContent = '📄 ' + file.name;
+    }
+
+    async function uploadGroupEnrollment(groupId) {
+      const file = document.getElementById(`gfile-${groupId}`).files[0];
+      const msg = document.getElementById(`gmsg-${groupId}`);
+      if (!file) { msg.textContent = 'Please choose an Excel file first'; msg.className = 'text-[10px] font-bold text-rose-400'; return; }
+      msg.textContent = 'Uploading...'; msg.className = 'text-[10px] font-bold text-slate-400';
+      const fd = new FormData(); fd.append('file', file);
+      const res = await fetch(`/admin-api/course-groups/${groupId}/enroll`, { method: 'POST', headers: { 'x-admin-user': authUser, 'x-admin-password': authPass }, body: fd });
+      const data = await res.json();
+      msg.textContent = data.success ? data.message : '❌ ' + data.error;
+      msg.className = `text-[10px] font-bold ${data.success ? 'text-emerald-400' : 'text-rose-400'}`;
+      if (data.success) document.getElementById(`gfile-${groupId}`).value = '';
+    }
+
+    // ── ENROLLMENTS (single course) ───────────────────────────────────────────
+    let allEnrollments = [];
+
     async function fetchEnrollmentCourses() {
       const res = await fetch('/admin-api/courses', { headers: H() });
       const data = await res.json();

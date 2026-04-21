@@ -281,6 +281,14 @@ const StudentCourseSchema = new mongoose.Schema({
 StudentCourseSchema.index({ email: 1, courseId: 1 }, { unique: true }); // no duplicate enrollments
 const StudentCourse = mongoose.model('StudentCourse', StudentCourseSchema);
 
+// Course Groups (admin-created folders that group multiple courses for bulk enrollment)
+const CourseGroupSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true, trim: true },
+  courseIds: [{ type: String }], // list of courseId strings in this folder
+  createdAt: { type: Date, default: Date.now },
+});
+const CourseGroup = mongoose.model('CourseGroup', CourseGroupSchema);
+
 // Email Delivery Logs (prevents spamming and respects 400/day limit)
 const EmailLogSchema = new mongoose.Schema({
   email: { type: String, required: true, lowercase: true, index: true },
@@ -1699,6 +1707,114 @@ app.delete('/admin-api/enrollments/:courseId/:email', async (req, res) => {
     const email = req.params.email.toLowerCase();
     await StudentCourse.deleteOne({ courseId, email });
     res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// ── Admin: Course Groups (Folders) ──────────────────────────────────────────
+
+// GET all groups
+app.get('/admin-api/course-groups', async (req, res) => {
+  try {
+    const groups = await CourseGroup.find().sort({ createdAt: -1 });
+    res.json({ success: true, groups });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// POST create a new group
+app.post('/admin-api/course-groups', express.json(), async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.json({ success: false, error: 'Group name is required' });
+    const group = await CourseGroup.create({ name: name.trim(), courseIds: [] });
+    res.json({ success: true, group });
+  } catch (err) {
+    if (err.code === 11000) return res.json({ success: false, error: 'A group with that name already exists' });
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// PATCH add a course to a group
+app.patch('/admin-api/course-groups/:id/add-course', express.json(), async (req, res) => {
+  try {
+    const { courseId } = req.body;
+    if (!courseId) return res.json({ success: false, error: 'courseId is required' });
+    const courseIdUpper = courseId.trim().toUpperCase();
+    const course = await Course.findOne({ courseId: courseIdUpper });
+    if (!course) return res.json({ success: false, error: `Course ${courseIdUpper} not found` });
+    const group = await CourseGroup.findByIdAndUpdate(
+      req.params.id,
+      { $addToSet: { courseIds: courseIdUpper } },
+      { new: true }
+    );
+    if (!group) return res.json({ success: false, error: 'Group not found' });
+    res.json({ success: true, group });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// PATCH remove a course from a group
+app.patch('/admin-api/course-groups/:id/remove-course', express.json(), async (req, res) => {
+  try {
+    const { courseId } = req.body;
+    const group = await CourseGroup.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { courseIds: courseId.trim().toUpperCase() } },
+      { new: true }
+    );
+    if (!group) return res.json({ success: false, error: 'Group not found' });
+    res.json({ success: true, group });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// DELETE a group
+app.delete('/admin-api/course-groups/:id', async (req, res) => {
+  try {
+    await CourseGroup.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+// POST bulk enroll students from Excel into ALL courses in a group
+app.post('/admin-api/course-groups/:id/enroll', upload.single('file'), async (req, res) => {
+  try {
+    const group = await CourseGroup.findById(req.params.id);
+    if (!group) return res.json({ success: false, error: 'Group not found' });
+    if (!group.courseIds.length) return res.json({ success: false, error: 'This group has no courses. Add courses first.' });
+    if (!req.file) return res.json({ success: false, error: 'Excel file is required' });
+
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    if (rows.length < 2) return res.json({ success: false, error: 'Excel file is empty or has no data rows' });
+    const header = rows[0].map(h => String(h).toLowerCase().trim());
+    const emailCol = header.findIndex(h => h.includes('email') || h.includes('mail'));
+    if (emailCol === -1) return res.json({ success: false, error: 'No email column found. Add a column header named "Email".' });
+
+    const emails = [];
+    for (let i = 1; i < rows.length; i++) {
+      const raw = String(rows[i][emailCol] || '').trim().toLowerCase();
+      if (raw && isValidEmail(raw)) emails.push(raw);
+    }
+    if (!emails.length) return res.json({ success: false, error: 'No valid email addresses found in the file.' });
+
+    let inserted = 0, skipped = 0;
+    for (const courseId of group.courseIds) {
+      for (const email of emails) {
+        try {
+          await StudentCourse.create({ email, courseId });
+          inserted++;
+        } catch (e) {
+          if (e.code === 11000) skipped++;
+          else throw e;
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `✅ Enrolled ${emails.length} students into ${group.courseIds.length} courses. ${inserted} new records added, ${skipped} already existed.`,
+      inserted, skipped, students: emails.length, courses: group.courseIds.length,
+    });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
