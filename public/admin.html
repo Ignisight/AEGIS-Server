@@ -173,6 +173,35 @@
               </div>
             </div>
           </div>
+
+          <!-- ── COURSE ATTENDANCE SUMMARY STRIP ── -->
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold">📊 Course Attendance Overview</h3>
+                <p class="text-slate-400 text-sm mt-1">Live snapshot of attendance % per course. Red = defaulters present.</p>
+              </div>
+              <button onclick="fetchAttendanceReport(true)" class="text-indigo-400 text-xs font-bold border border-indigo-500/20 px-4 py-2 rounded-xl hover:bg-indigo-500/5 transition">↺ Refresh</button>
+            </div>
+            <div id="att-summary-strip" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div class="text-center text-slate-600 py-6 col-span-4 text-sm">Loading course data...</div>
+            </div>
+          </div>
+
+          <!-- ── LOW ATTENDANCE PANEL ── -->
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold">🚨 Low Attendance Defaulters</h3>
+                <p class="text-slate-400 text-sm mt-1">Students below 75% threshold, grouped by course. Sorted worst-first.</p>
+              </div>
+              <span id="att-total-defaulters" class="text-[10px] font-bold bg-rose-500/20 text-rose-400 px-3 py-1 rounded-full">-- at risk</span>
+            </div>
+            <div id="att-defaulters-panel" class="space-y-4">
+              <div class="text-center text-slate-600 py-6 text-sm">Loading...</div>
+            </div>
+          </div>
+
         </div>
 
         <!-- GENERIC TABLE VIEW (Teachers, Students, Departments, etc) -->
@@ -333,7 +362,7 @@
       if (data.success) {
         authUser = user; authPass = pass;
         localStorage.setItem('adminUser', user); localStorage.setItem('adminPass', pass);
-        showDashboard(); fetchStats();
+        showDashboard(); fetchStats(); fetchAttendanceReport();
       } else { document.getElementById('loginError').textContent = 'Authentication Failed'; document.getElementById('loginError').classList.remove('hidden'); }
     });
 
@@ -366,7 +395,7 @@
       const isNormalTable = ['teachers','students','departments','courses','assignments','email-logs'].includes(tab);
       document.getElementById('tableView').classList.toggle('hidden', !isNormalTable);
       
-      if (tab === 'monitoring') fetchStats();
+      if (tab === 'monitoring') { fetchStats(); fetchAttendanceReport(); }
       else if (tab === 'teachers' || tab === 'students') fetchData();
       else if (tab === 'departments') fetchDepartmentsView();
       else if (tab === 'courses') fetchCoursesView();
@@ -410,7 +439,110 @@
       });
     }
 
-    // ── DATA FETCHERS ────────────────────────────────────────────────────────
+    // ── ATTENDANCE REPORT ─────────────────────────────────────────────────────
+    let lastAttReport = null;
+
+    async function fetchAttendanceReport(forceRefresh = false) {
+      const strip = document.getElementById('att-summary-strip');
+      const panel = document.getElementById('att-defaulters-panel');
+      const badge = document.getElementById('att-total-defaulters');
+      strip.innerHTML = '<div class="text-center text-slate-600 py-6 col-span-4 text-sm">Calculating...</div>';
+      panel.innerHTML = '<div class="text-center text-slate-600 py-6 text-sm">Calculating...</div>';
+
+      const url = forceRefresh ? '/admin-api/attendance-report?force=1' : '/admin-api/attendance-report';
+      const res = await fetch(url, { headers: H() });
+      const data = await res.json();
+      if (!data.success) {
+        strip.innerHTML = `<div class="text-rose-400 col-span-4 text-sm">${data.error}</div>`;
+        return;
+      }
+      lastAttReport = data.report;
+      renderAttendanceReport(data.report);
+    }
+
+    function renderAttendanceReport(report) {
+      const strip = document.getElementById('att-summary-strip');
+      const panel = document.getElementById('att-defaulters-panel');
+      const badge = document.getElementById('att-total-defaulters');
+
+      if (!report.length) {
+        strip.innerHTML = '<div class="col-span-4 text-center text-slate-600 py-6 text-sm">No courses with completed sessions yet. Sessions must be named like "CS301 - Lecture 1" for tracking.</div>';
+        panel.innerHTML = '<div class="text-center text-slate-600 py-6 text-sm">Nothing to report.</div>';
+        badge.textContent = '0 at risk';
+        return;
+      }
+
+      const totalDefaulters = report.reduce((s, c) => s + c.defaulterCount, 0);
+      badge.textContent = totalDefaulters + ' at risk';
+      badge.className = `text-[10px] font-bold px-3 py-1 rounded-full ${totalDefaulters > 0 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`;
+
+      // Summary strip cards
+      strip.innerHTML = report.map(c => {
+        const pct = c.avgAttendance;
+        const color = pct >= 75 ? 'text-emerald-400' : 'text-rose-400';
+        const bg = c.defaulterCount > 0 ? 'border border-rose-500/20' : 'border border-white/5';
+        return `
+          <div class="glass-card ${bg} rounded-2xl p-5 flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-transform" onclick="scrollToDefaulterCourse('${c.courseId}')">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${c.courseId}</span>
+            <span class="${color} text-3xl font-black">${pct}%</span>
+            <div class="text-[11px] text-slate-500">${c.courseName}</div>
+            <div class="flex gap-2 mt-1">
+              <span class="text-[10px] font-bold bg-white/5 px-2 py-0.5 rounded-full">${c.totalSessions} sessions</span>
+              ${c.defaulterCount > 0 ? `<span class="text-[10px] font-bold bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full">${c.defaulterCount} defaulters</span>` : `<span class="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">All passing</span>`}
+            </div>
+          </div>`;
+      }).join('');
+
+      // Defaulters panel - only courses that HAVE defaulters
+      const coursesWithDefaulters = report.filter(c => c.defaulterCount > 0);
+      if (!coursesWithDefaulters.length) {
+        panel.innerHTML = '<div class="text-center py-12"><div class="text-4xl mb-3">✅</div><div class="text-emerald-400 font-bold">All enrolled students are above 75%!</div></div>';
+        return;
+      }
+
+      panel.innerHTML = coursesWithDefaulters.map(c => `
+        <div class="glass-card rounded-3xl overflow-hidden" id="defaulter-course-${c.courseId}">
+          <div class="flex items-center justify-between px-6 py-4 bg-rose-500/5 border-b border-rose-500/10">
+            <div class="flex items-center gap-3">
+              <span class="text-rose-400 font-black text-lg">${c.courseId}</span>
+              <span class="text-slate-400 text-sm">${c.courseName}</span>
+              <span class="text-[10px] font-bold bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full">${c.defaulterCount} of ${c.totalEnrolled} students</span>
+            </div>
+            <span class="text-slate-500 text-[10px] font-bold">${c.totalSessions} sessions held</span>
+          </div>
+          <table class="w-full text-left">
+            <thead class="bg-slate-900/40">
+              <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <th class="px-6 py-3">Student Email</th>
+                <th class="px-6 py-3">Sessions Attended</th>
+                <th class="px-6 py-3">Attendance %</th>
+                <th class="px-6 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
+              ${c.defaulters.map(d => {
+                const pct = d.percentage;
+                const color = pct < 50 ? 'text-rose-500' : 'text-amber-400';
+                const tag = pct < 50 ? '🔴 Critical' : '🟡 Warning';
+                return `<tr class="hover:bg-white/2 transition">
+                  <td class="px-6 py-3 font-bold text-sm">${d.email}</td>
+                  <td class="px-6 py-3 text-slate-400 text-sm font-mono">${d.attended} / ${d.totalSessions}</td>
+                  <td class="px-6 py-3"><span class="${color} font-black text-lg">${pct}%</span></td>
+                  <td class="px-6 py-3"><span class="text-[10px] font-bold">${tag}</span></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `).join('');
+    }
+
+    function scrollToDefaulterCourse(courseId) {
+      const el = document.getElementById('defaulter-course-' + courseId);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+
     async function fetchData() {
       const res = await fetch('/admin-api/data', { headers: H() });
       const data = await res.json();
