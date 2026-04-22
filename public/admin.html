@@ -751,7 +751,7 @@
       ]);
       const ts = document.getElementById('a-teacher');
       const cs = document.getElementById('a-course');
-      ts.innerHTML = '<option value="">Select Faculty</option>' + (tr.teachers||[]).map(t=>`<option value="${t.email}">${t.name}</option>`).join('');
+      ts.innerHTML = '<option value="">Select Faculty</option>' + (tr.approvedTeachers||[]).map(t=>`<option value="${t.email}">${t.name}</option>`).join('');
       cs.innerHTML = '<option value="">Select Subject</option>' + (cr.courses||[]).map(c=>`<option value="${c.courseId}">${c.courseId} - ${c.name}</option>`).join('');
       openModal('assignment');
     }
