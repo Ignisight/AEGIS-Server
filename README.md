@@ -2,8 +2,8 @@
 
 Backend REST API for the QR Attendance System. Handles teacher authentication, attendance sessions, student device binding, OTP password reset, and data export.
 
-**Live Server (App Gateway):** [attendance-server-ddgs.onrender.com](https://attendance-server-ddgs.onrender.com)  
-**Admin Dashboard:** [attendance-server-ddgs.onrender.com/admin](https://attendance-server-ddgs.onrender.com/admin)
+**Live Server (App Gateway):** [aegis-server-02y5.onrender.com](https://aegis-server-02y5.onrender.com)  
+**Admin Dashboard:** [aegis-server-02y5.onrender.com/admin](https://aegis-server-02y5.onrender.com/admin)
 
 ### 📥 Download the Official App (v2.7.0)
 The system now uses **App-Only Security**. Browser-based submission is disabled to ensure device binding and geofencing integrity. Students must use the latest A.E.G.I.S app.
@@ -87,7 +87,12 @@ attendance-server/
 | GET | `/admin` | Open secure management dashboard |
 | POST | `/admin-api/login` | Authenticate using Admin User/Password |
 | GET | `/admin-api/data` | Fetch all teachers and student devices |
-| DELETE| `/admin-api/teacher/:email` | Remove teacher & stop their sessions |
+| GET | `/admin-api/attendance-report` | Live attendance % and defaulter list |
+| POST | `/admin-api/settings` | Update system-wide attendance threshold |
+| GET | `/admin-api/course-groups` | Fetch all multi-course folder structures |
+| POST | `/admin-api/course-groups` | Create a new course folder/group |
+| POST | `/admin-api/course-groups/:id/enroll` | Bulk enroll students via Excel into all courses in group |
+| DELETE| `/admin-api/approved-teachers/:email` | Remove teacher & stop their sessions |
 | DELETE| `/admin-api/student/:email` | Wipe device binding (reset student phone) |
 
 ### Export
