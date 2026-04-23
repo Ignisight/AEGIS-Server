@@ -458,6 +458,10 @@
 
 
   <script>
+    window.onerror = function(msg, url, line) {
+      alert("CRITICAL ERROR: " + msg + "\nAt: " + url + ":" + line);
+      return false;
+    };
     let authUser = localStorage.getItem('adminUser') || '', authPass = localStorage.getItem('adminPass') || '', currentTab = 'monitoring', branchChart, hourlyChart, allTeachers = [], allStudents = [], renderedStudents = [], allCourses = [], allAssignments = [], allDepts = [], currentGroupId = null;
 
     const H = () => ({ 'Content-Type':'application/json', 'x-admin-user':authUser, 'x-admin-password':authPass });

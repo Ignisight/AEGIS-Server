@@ -1288,14 +1288,14 @@ app.get('/admin', (req, res) => {
 // Use express.json() if it's not applied globally to admin-api
 app.post('/admin-api/login', express.json(), (req, res) => {
   const { username, password } = req.body;
+  console.log(`[AUTH] Login attempt for: "${username}"`);
   
   if (username === ADMIN_USER && password === ADMIN_PASSWORD) {
     console.log(`[AUTH] Admin login SUCCESS for user: ${username}`);
     res.json({ success: true });
   } else {
-    console.warn(`[AUTH] Admin login FAILED.`);
-    console.warn(`       Provided user: "${username}" | Expected: "${ADMIN_USER}"`);
-    console.warn(`       Provided pass length: ${password ? password.length : 0} | Expected pass length: ${ADMIN_PASSWORD ? ADMIN_PASSWORD.length : 0}`);
+    console.warn(`[AUTH] Admin login FAILED for user: "${username}"`);
+    console.warn(`       Expected user: "${ADMIN_USER}" | Expected pass length: ${ADMIN_PASSWORD ? ADMIN_PASSWORD.length : 0}`);
     res.status(401).json({ success: false, error: 'Invalid admin credentials' });
   }
 });
