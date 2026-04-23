@@ -59,12 +59,18 @@ async function sendEmail(to, subject, html) {
       }),
     });
     const data = await res.json();
-    if (res.ok) return { success: true };
+    if (res.ok) {
+      await EmailLog.create({ to, subject, status: 'success' });
+      return { success: true };
+    }
+    const errorMsg = data.message || 'Email send failed.';
+    await EmailLog.create({ to, subject, status: 'failed', error: errorMsg });
     if (res.status === 429) return { success: false, error: 'Daily email limit reached. Please try again tomorrow.' };
     console.error('Brevo API error:', data);
-    return { success: false, error: data.message || 'Email send failed.' };
+    return { success: false, error: errorMsg };
   } catch (err) {
     console.error('Email send error:', err.message);
+    await EmailLog.create({ to, subject, status: 'failed', error: err.message });
     return { success: false, error: 'Email service unreachable.' };
   }
 }
@@ -244,6 +250,16 @@ const ApprovedTeacherSchema = new mongoose.Schema({
   addedAt: { type: Date, default: Date.now },
 });
 const ApprovedTeacher = mongoose.model('ApprovedTeacher', ApprovedTeacherSchema);
+
+// Log of outgoing emails (OTPs, etc)
+const EmailLogSchema = new mongoose.Schema({
+  to: { type: String, required: true, lowercase: true, index: true },
+  subject: { type: String },
+  status: { type: String }, // 'success' or 'failed'
+  error: { type: String },
+  sentAt: { type: Date, default: Date.now },
+});
+const EmailLog = mongoose.model('EmailLog', EmailLogSchema);
 
 // Departments
 const DepartmentSchema = new mongoose.Schema({
@@ -1754,6 +1770,13 @@ app.delete('/admin-api/teacher-courses/:id', async (req, res) => {
   try {
     await TeacherCourse.deleteOne({ _id: req.params.id });
     res.json({ success: true });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.get('/admin-api/email-logs', async (req, res) => {
+  try {
+    const logs = await EmailLog.find().sort({ sentAt: -1 }).limit(100);
+    res.json({ success: true, logs });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
