@@ -39,7 +39,12 @@
       </div>
       <form id="loginForm" class="space-y-4">
         <input type="text" id="usernameInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Username">
-        <input type="password" id="passwordInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Password">
+        <div class="relative">
+          <input type="password" id="passwordInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none pr-12" placeholder="Password">
+          <button type="button" onclick="togglePassword()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            <span id="eye-icon">👁️</span>
+          </button>
+        </div>
         <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all">Authenticate</button>
         <div id="loginError" class="hidden text-rose-400 text-xs text-center font-bold"></div>
       </form>
@@ -500,6 +505,12 @@
     }
     
     function logout() { localStorage.clear(); location.reload(); }
+
+    function togglePassword() {
+      const p = document.getElementById('passwordInput'), e = document.getElementById('eye-icon');
+      if (p.type === 'password') { p.type = 'text'; e.textContent = '🔒'; }
+      else { p.type = 'password'; e.textContent = '👁️'; }
+    }
 
     const ALL_IDS = ['monitoring','defaulters','departments','courses','assignments','enrollments','teachers','students','email-logs'];
     function switchTab(tab) {

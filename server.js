@@ -1982,21 +1982,12 @@ app.post('/admin-api/course-groups/:id/enroll', upload.single('file'), async (re
 // ==========================================
 // BACKGROUND JOB: LOW ATTENDANCE EMAIL ALERTS
 // ==========================================
-const DAILY_EMAIL_LIMIT = 400; // Gmail SMTP safe limit per day
-const ALERT_THRESHOLD = 75; // Percentage
+const DAILY_EMAIL_LIMIT = 400; // Safe limit per day
 const DAYS_BETWEEN_ALERTS = 7; // Don't email same student for same course within 7 days
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER || '',
-    pass: process.env.GMAIL_PASS || ''
-  }
-});
-
 async function runAttendanceEmailJob() {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
-    console.log('[MAILER] Missing GMAIL_USER or GMAIL_PASS env variables. Skipping email alerts.');
+  if (!process.env.BREVO_API_KEY) {
+    console.log('[MAILER] Missing BREVO_API_KEY. Skipping email alerts.');
     return;
   }
 
@@ -2073,11 +2064,8 @@ async function runAttendanceEmailJob() {
         ).join('');
 
         const isMultiple = alertCourses.length > 1;
-        const mailOptions = {
-          from: `"A.E.G.I.S Alerts" <${process.env.GMAIL_USER}>`,
-          to: email,
-          subject: isMultiple ? `⚠️ Low Attendance Warning: ${alertCourses.length} Subjects` : `⚠️ Low Attendance Warning: ${alertCourses[0].courseId}`,
-          html: `
+        const subject = isMultiple ? `⚠️ Low Attendance Warning: ${alertCourses.length} Subjects` : `⚠️ Low Attendance Warning: ${alertCourses[0].courseId}`;
+        const html = `
             <div style="font-family: Arial, sans-serif; padding: 24px; max-width: 600px; border: 1px solid #e5e7eb; border-radius: 12px; margin: 0 auto;">
               <h2 style="color: #ef4444; margin-top: 0;">Attendance Alert</h2>
               <p>Hello,</p>
@@ -2091,16 +2079,16 @@ async function runAttendanceEmailJob() {
               <br>
               <p style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 12px;">This is an automated message from A.E.G.I.S. Please do not reply.</p>
             </div>
-          `
-        };
+          `;
 
         try {
-          await transporter.sendMail(mailOptions);
-          await EmailLog.create({ email, courseIds: alertCourseIds });
-          sentInThisRun++;
-          quotaRemaining--;
+          const mailRes = await sendEmail(email, subject, html);
+          if (mailRes.success) {
+            sentInThisRun++;
+            quotaRemaining--;
+          }
           
-          // 2-second rate-limit throttle to avoid Gmail spam blocks
+          // 2-second rate-limit throttle to avoid spam blocks
           await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (mailErr) {
           console.error(`[MAILER] Failed to send to ${email}:`, mailErr.message);
