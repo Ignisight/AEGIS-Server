@@ -461,14 +461,35 @@
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const user = document.getElementById('usernameInput').value, pass = document.getElementById('passwordInput').value;
-      const res = await fetch('/admin-api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user, password:pass}) });
-      const data = await res.json();
-      if (data.success) {
-        authUser = user; authPass = pass;
-        localStorage.setItem('adminUser', user); localStorage.setItem('adminPass', pass);
-        showDashboard(); fetchStats(); fetchAttendanceReport();
-      } else { document.getElementById('loginError').textContent = 'Authentication Failed'; document.getElementById('loginError').classList.remove('hidden'); }
+      const errEl = document.getElementById('loginError');
+      errEl.classList.add('hidden');
+      
+      try {
+        const user = document.getElementById('usernameInput').value, pass = document.getElementById('passwordInput').value;
+        const res = await fetch('/admin-api/login', { 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'}, 
+          body:JSON.stringify({username:user, password:pass}) 
+        });
+        
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `Server returned ${res.status}`);
+        }
+        
+        const data = await res.json();
+        if (data.success) {
+          authUser = user; authPass = pass;
+          localStorage.setItem('adminUser', user); localStorage.setItem('adminPass', pass);
+          showDashboard(); fetchStats(); fetchAttendanceReport();
+        } else {
+          throw new Error('Authentication Failed');
+        }
+      } catch (err) {
+        console.error('Login Error:', err);
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      }
     });
 
     function showDashboard() {
