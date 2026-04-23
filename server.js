@@ -1432,11 +1432,13 @@ app.get('/admin-api/stats', async (req, res) => {
 
     const start = Date.now();
     // estimatedDocumentCount is O(1) and much faster than countDocuments()
-    const [tCount, sCount, aCount, dCount] = await Promise.all([
+    const [tCount, sCount, aCount, dCount, approvedCount, enrCount] = await Promise.all([
       Teacher.estimatedDocumentCount(),
       Session.estimatedDocumentCount(),
       Attendance.estimatedDocumentCount(),
-      Device.estimatedDocumentCount()
+      Device.estimatedDocumentCount(),
+      ApprovedTeacher.estimatedDocumentCount(),
+      StudentCourse.estimatedDocumentCount()
     ]);
     const dbLatency = Date.now() - start;
 
@@ -1444,42 +1446,43 @@ app.get('/admin-api/stats', async (req, res) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    // Powerful MongoDB Aggregation to offload processing from Node.js Event Loop
-    const pipeline = [
-      { $match: { submittedAt: { $gte: sevenDaysAgo } } },
+    // Distribution metrics (based on Student Enrollments for more stable "at-a-glance" profile)
+    const enrDistribution = await StudentCourse.aggregate([
       {
-        $facet: {
-          branches: [
-            { $group: { _id: { $ifNull: ["$branch", "Unknown"] }, count: { $sum: 1 } } }
-          ],
-          years: [
-            { $group: { _id: { $ifNull: ["$year", "Unknown"] }, count: { $sum: 1 } } }
-          ],
-          hourly: [
-            { $project: { hour: { $hour: { date: "$submittedAt" } } } },
-            { $group: { _id: "$hour", count: { $sum: 1 } } }
-          ]
+        $lookup: {
+          from: 'courses',
+          localField: 'courseId',
+          foreignField: 'courseId',
+          as: 'courseInfo'
         }
-      }
-    ];
+      },
+      { $unwind: { path: '$courseInfo', preserveNullAndEmptyArrays: true } },
+      { $group: { _id: { $ifNull: ["$courseInfo.department", "Misc"] }, count: { $sum: 1 } } }
+    ]);
 
-    const aggResult = await Attendance.aggregate(pipeline);
-    const result = aggResult[0] || { branches: [], years: [], hourly: [] };
+    const hourlyAgg = await Attendance.aggregate([
+      { $match: { submittedAt: { $gte: sevenDaysAgo } } },
+      { $project: { hour: { $hour: { date: "$submittedAt", timezone: "+05:30" } } } },
+      { $group: { _id: "$hour", count: { $sum: 1 } } }
+    ]);
 
-    // Format output
     const branchStats = {};
-    result.branches.forEach(b => branchStats[b._id || 'Unknown'] = b.count);
-
-    const yearStats = {};
-    result.years.forEach(y => yearStats[y._id || 'Unknown'] = y.count);
+    enrDistribution.forEach(b => branchStats[b._id] = b.count);
 
     const hourlyDistribution = Array(24).fill(0);
-    result.hourly.forEach(h => {
+    hourlyAgg.forEach(h => {
       if (h._id >= 0 && h._id < 24) hourlyDistribution[h._id] = h.count;
     });
 
     cachedStats = {
-      counts: { teachers: tCount, sessions: sCount, attendance: aCount, devices: dCount },
+      counts: { 
+        teachers: approvedCount, // Show whitelisted faculty as primary
+        registeredTeachers: tCount,
+        sessions: sCount, 
+        attendance: aCount, 
+        devices: dCount,
+        enrollments: enrCount
+      },
       performance: {
         uptime: Math.floor(process.uptime()),
         dbLatency,
@@ -1487,7 +1490,6 @@ app.get('/admin-api/stats', async (req, res) => {
       },
       distribution: {
         branches: branchStats,
-        years: yearStats,
         hourly: hourlyDistribution
       }
     };
@@ -1905,13 +1907,20 @@ app.patch('/admin-api/course-groups/:id/add-course', express.json(), async (req,
 // PATCH remove a course from a group
 app.patch('/admin-api/course-groups/:id/remove-course', express.json(), async (req, res) => {
   try {
-    const { courseId } = req.body;
+    const { courseId, flush } = req.body;
+    const cid = courseId.trim().toUpperCase();
     const group = await CourseGroup.findByIdAndUpdate(
       req.params.id,
-      { $pull: { courseIds: courseId.trim().toUpperCase() } },
+      { $pull: { courseIds: cid } },
       { new: true }
     );
     if (!group) return res.json({ success: false, error: 'Group not found' });
+
+    if (flush) {
+      // Wiping students from this specific course
+      await StudentCourse.deleteMany({ courseId: cid });
+    }
+
     res.json({ success: true, group });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });

@@ -146,7 +146,7 @@
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="glass-card p-8 rounded-3xl h-[400px]">
-              <h3 class="text-sm font-bold text-slate-400 mb-6 uppercase tracking-wider">Branch Distribution</h3>
+              <h3 class="text-sm font-bold text-slate-400 mb-6 uppercase tracking-wider">Department Distribution</h3>
               <canvas id="branchChart"></canvas>
             </div>
             <div class="glass-card p-8 rounded-3xl h-[400px]">
@@ -414,14 +414,16 @@
       <div class="text-center">
         <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">🗑️</div>
         <h3 id="del-group-title" class="text-xl font-bold mb-2">Destroy Folder?</h3>
-        <p class="text-slate-400 text-sm mb-6">How do you want to handle the students currently enrolled via this group?</p>
+        <p id="del-group-msg" class="text-slate-400 text-sm mb-6">How do you want to handle the students currently enrolled via this group?</p>
         
         <div class="space-y-3 mb-8">
           <button id="btn-del-group-only" class="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl text-xs transition border border-white/5">
-            FOLDER ONLY<br><span class="text-[10px] opacity-40 font-normal italic">Keep students in courses</span>
+            <div id="btn-del-group-only-text">FOLDER ONLY</div>
+            <div id="btn-del-group-only-sub" class="text-[10px] opacity-40 font-normal italic">Keep students in courses</div>
           </button>
           <button id="btn-del-group-full" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-4 rounded-2xl text-xs shadow-lg shadow-rose-500/20 transition">
-            FULL WIPE<br><span class="text-[10px] opacity-80 font-normal italic">Remove students from all courses</span>
+            <div id="btn-del-group-full-text">FULL WIPE</div>
+            <div id="btn-del-group-full-sub" class="text-[10px] opacity-80 font-normal italic">Remove students from all courses</div>
           </button>
         </div>
         
@@ -747,11 +749,21 @@
       allCourses = cRes.courses || [];
       const dd = document.getElementById('c-dept');
       dd.innerHTML = '<option value="">Target Domain</option>' + dRes.departments.map(d=>`<option value="${d.deptId}">${d.name}</option>`).join('');
-      const h = document.getElementById('tableHead'), b = document.getElementById('tableBody'), r = document.getElementById('tableActionRight');
-      h.innerHTML = '<th class="px-8 py-5">Subject ID</th><th class="px-8 py-5">Name</th><th class="px-8 py-5">SEM</th><th class="px-8 py-5 text-right">Actions</th>';
+      
+      const h = document.getElementById('tableHead'), b = document.getElementById('tableBody'), r = document.getElementById('tableActionRight'), l = document.getElementById('tableActionLeft');
+      l.innerHTML = `<select id="f-course-dept" onchange="renderCoursesTable()" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black outline-none text-indigo-400 uppercase tracking-widest"><option value="">All Departments</option>${dRes.departments.map(d=>`<option value="${d.deptId}">${d.deptId}</option>`).join('')}</select>`;
       r.innerHTML = `<button onclick="openAddCourseModal()" class="bg-indigo-600 px-6 py-2.5 rounded-xl font-bold text-xs">New Subject</button>`;
-      b.innerHTML = allCourses.map(c => `
+      renderCoursesTable();
+    }
+
+    function renderCoursesTable() {
+      const dept = document.getElementById('f-course-dept').value;
+      const filtered = allCourses.filter(c => !dept || c.department === dept);
+      const h = document.getElementById('tableHead'), b = document.getElementById('tableBody');
+      h.innerHTML = '<th class="px-8 py-5">DEPT</th><th class="px-8 py-5">Subject ID</th><th class="px-8 py-5">Name</th><th class="px-8 py-5">SEM</th><th class="px-8 py-5 text-right">Actions</th>';
+      b.innerHTML = filtered.map(c => `
         <tr>
+          <td class="px-8 py-6"><span class="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[9px] font-black">${c.department || '—'}</span></td>
           <td class="px-8 py-6 font-black text-xs text-slate-400">${c.courseId}</td>
           <td class="px-8 py-6 font-bold text-slate-200">${c.name}</td>
           <td class="px-8 py-6 text-xs font-bold text-slate-500">TERM ${c.semester||'?'}</td>
@@ -870,6 +882,12 @@
 
     async function deleteGroup(id, name) {
       document.getElementById('del-group-title').textContent = `Destroy "${name}"?`;
+      document.getElementById('del-group-msg').textContent = 'How do you want to handle the students currently enrolled via this group?';
+      document.getElementById('btn-del-group-only-text').textContent = 'FOLDER ONLY';
+      document.getElementById('btn-del-group-only-sub').textContent = 'Keep students in courses';
+      document.getElementById('btn-del-group-full-text').textContent = 'FULL WIPE';
+      document.getElementById('btn-del-group-full-sub').textContent = 'Remove students from all courses';
+      
       document.getElementById('btn-del-group-only').onclick = () => confirmDeleteGroup(id, false);
       document.getElementById('btn-del-group-full').onclick = () => confirmDeleteGroup(id, true);
       openModal('delete-group');
@@ -918,9 +936,31 @@
     }
 
     async function removeCourseFromGroup(groupId, courseId) {
-      const res = await fetch(`/admin-api/course-groups/${groupId}/remove-course`, { method: 'PATCH', headers: H(), body: JSON.stringify({ courseId }) });
+      document.getElementById('del-group-title').textContent = `Detach ${courseId}?`;
+      document.getElementById('del-group-msg').textContent = 'Remove this subject from the folder. Students can also be removed from the subject.';
+      document.getElementById('btn-del-group-only-text').textContent = 'DETACH ONLY';
+      document.getElementById('btn-del-group-only-sub').textContent = 'Students stay in subject';
+      document.getElementById('btn-del-group-full-text').textContent = 'DETACH & WIPE';
+      document.getElementById('btn-del-group-full-sub').textContent = 'Remove all students from subject';
+
+      document.getElementById('btn-del-group-only').onclick = () => executeRemoveCourseFromGroup(groupId, courseId, false);
+      document.getElementById('btn-del-group-full').onclick = () => executeRemoveCourseFromGroup(groupId, courseId, true);
+      openModal('delete-group');
+    }
+
+    async function executeRemoveCourseFromGroup(groupId, courseId, flush) {
+      const res = await fetch(`/admin-api/course-groups/${groupId}/remove-course`, {
+        method: 'PATCH',
+        headers: H(),
+        body: JSON.stringify({ courseId, flush })
+      });
       const data = await res.json();
-      if (data.success) { allGroups = allGroups.map(g => g._id === groupId ? data.group : g); renderGroups(); }
+      if (data.success) {
+        allGroups = allGroups.map(g => g._id === groupId ? data.group : g);
+        renderGroups();
+        closeModal('delete-group');
+        if (flush) fetchAttendanceReport(true);
+      }
     }
 
     function handleGroupFileSelected(groupId) {
