@@ -1733,8 +1733,8 @@ app.post('/admin-api/teacher-courses', async (req, res) => {
   try {
     const { teacherEmail, courseId } = req.body;
     if (!teacherEmail || !courseId) return res.json({ success: false, error: 'teacherEmail and courseId are required' });
-    const teacher = await Teacher.findOne({ email: teacherEmail.toLowerCase().trim() });
-    if (!teacher) return res.json({ success: false, error: 'Teacher not found' });
+    const teacher = await ApprovedTeacher.findOne({ email: teacherEmail.toLowerCase().trim() });
+    if (!teacher) return res.json({ success: false, error: 'Teacher not found in whitelist' });
     const course = await Course.findOne({ courseId: courseId.trim().toUpperCase() });
     if (!course) return res.json({ success: false, error: 'Course not found' });
     await TeacherCourse.create({ teacherEmail: teacherEmail.toLowerCase().trim(), courseId: courseId.trim().toUpperCase() });
