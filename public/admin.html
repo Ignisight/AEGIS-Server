@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>A.E.G.I.S — Admin Command</title>
+  <title>A.E.G.I.S ??? Admin Command</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -33,7 +33,7 @@
   <div id="loginScreen" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#020617] p-4">
     <div class="glass w-full max-w-sm p-8 rounded-[32px] border-white/10 shadow-2xl">
       <div class="text-center mb-10">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20 text-2xl">🛡️</div>
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20 text-2xl">???????</div>
         <h2 class="text-2xl font-bold tracking-tight">Access Controlled</h2>
         <p class="text-slate-500 text-sm">Sign in to A.E.G.I.S Commander</p>
       </div>
@@ -42,7 +42,7 @@
         <div class="relative">
           <input type="password" id="passwordInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none pr-12" placeholder="Password">
           <button type="button" onclick="togglePassword()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
-            <span id="eye-icon">👁️</span>
+            <span id="eye-icon">???????</span>
           </button>
         </div>
         <button type="button" id="loginBtn" onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all">Authenticate</button>
@@ -55,7 +55,7 @@
   <aside id="sidebar" class="hidden w-72 h-full glass border-r flex flex-col z-40">
     <div class="p-6 border-b border-white/5">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-xl shadow-lg">🛡️</div>
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-xl shadow-lg">???????</div>
         <div>
           <h1 class="text-lg font-bold">A.E.G.I.S</h1>
           <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Command Center</p>
@@ -68,9 +68,9 @@
       <div>
         <div class="nav-group-label">Overview</div>
         <div class="space-y-1">
-          <div onclick="switchTab('monitoring')" id="tab-monitoring" class="sidebar-item sidebar-item-active"><span>📊</span> Monitoring</div>
-          <div onclick="switchTab('defaulters')" id="tab-defaulters" class="sidebar-item sidebar-item-inactive"><span>🚨</span> Defaulters <span id="att-total-defaulters-badge" class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 hidden">0</span></div>
-          <div onclick="switchTab('email-logs')" id="tab-email-logs" class="sidebar-item sidebar-item-inactive"><span>📨</span> Alert Logs</div>
+          <div onclick="switchTab('monitoring')" id="tab-monitoring" class="sidebar-item sidebar-item-active"><span>????</span> Monitoring</div>
+          <div onclick="switchTab('defaulters')" id="tab-defaulters" class="sidebar-item sidebar-item-inactive"><span>????</span> Defaulters <span id="att-total-defaulters-badge" class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 hidden">0</span></div>
+          <div onclick="switchTab('email-logs')" id="tab-email-logs" class="sidebar-item sidebar-item-inactive"><span>????</span> Alert Logs</div>
         </div>
       </div>
 
@@ -78,8 +78,8 @@
       <div>
         <div class="nav-group-label">Academic</div>
         <div class="space-y-1">
-          <div onclick="switchTab('departments')" id="tab-departments" class="sidebar-item sidebar-item-inactive"><span>🏛️</span> Departments</div>
-          <div onclick="switchTab('courses')" id="tab-courses" class="sidebar-item sidebar-item-inactive"><span>📚</span> Course Catalog</div>
+          <div onclick="switchTab('departments')" id="tab-departments" class="sidebar-item sidebar-item-inactive"><span>???????</span> Departments</div>
+          <div onclick="switchTab('courses')" id="tab-courses" class="sidebar-item sidebar-item-inactive"><span>????</span> Course Catalog</div>
         </div>
       </div>
 
@@ -87,8 +87,8 @@
       <div>
         <div class="nav-group-label">Operations</div>
         <div class="space-y-1">
-          <div onclick="switchTab('enrollments')" id="tab-enrollments" class="sidebar-item sidebar-item-inactive"><span>🎒</span> Student Enrollment</div>
-          <div onclick="switchTab('assignments')" id="tab-assignments" class="sidebar-item sidebar-item-inactive"><span>🔗</span> Teacher Assign</div>
+          <div onclick="switchTab('enrollments')" id="tab-enrollments" class="sidebar-item sidebar-item-inactive"><span>????</span> Student Enrollment</div>
+          <div onclick="switchTab('assignments')" id="tab-assignments" class="sidebar-item sidebar-item-inactive"><span>????</span> Teacher Assign</div>
         </div>
       </div>
 
@@ -96,8 +96,8 @@
       <div>
         <div class="nav-group-label">Identity</div>
         <div class="space-y-1">
-          <div onclick="switchTab('teachers')" id="tab-teachers" class="sidebar-item sidebar-item-inactive"><span>👨‍🏫</span> Faculty Whitelist</div>
-          <div onclick="switchTab('students')" id="tab-students" class="sidebar-item sidebar-item-inactive"><span>🎓</span> Device Bindings</div>
+          <div onclick="switchTab('teachers')" id="tab-teachers" class="sidebar-item sidebar-item-inactive"><span>???????????</span> Faculty Whitelist</div>
+          <div onclick="switchTab('students')" id="tab-students" class="sidebar-item sidebar-item-inactive"><span>????</span> Device Bindings</div>
         </div>
       </div>
     </div>
@@ -181,11 +181,11 @@
             </div>
           </div>
 
-          <!-- ── COURSE ATTENDANCE SUMMARY STRIP ── -->
+          <!-- ?????? COURSE ATTENDANCE SUMMARY STRIP ?????? -->
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h3 class="text-xl font-bold">📊 Course Attendance Overview</h3>
+                <h3 class="text-xl font-bold">???? Course Attendance Overview</h3>
                 <p class="text-slate-400 text-sm mt-1">Live snapshot of attendance % per course. Click a card to jump to its defaulters.</p>
               </div>
               <div class="flex items-center gap-4">
@@ -195,7 +195,7 @@
                   <span class="text-slate-500 font-bold">%</span>
                   <button onclick="saveThreshold()" class="text-[10px] font-bold text-indigo-400 border border-indigo-500/30 px-2 py-1 rounded-lg hover:bg-indigo-500/10 transition">Save</button>
                 </div>
-                <button onclick="fetchAttendanceReport(true)" class="text-indigo-400 text-xs font-bold border border-indigo-500/20 px-4 py-2 rounded-xl hover:bg-indigo-500/5 transition">↺ Refresh</button>
+                <button onclick="fetchAttendanceReport(true)" class="text-indigo-400 text-xs font-bold border border-indigo-500/20 px-4 py-2 rounded-xl hover:bg-indigo-500/5 transition">??? Refresh</button>
               </div>
             </div>
             <div id="att-summary-strip" class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -204,12 +204,12 @@
           </div>
         </div>
 
-        <!-- ── DEFAULTERS VIEW ── -->
+        <!-- ?????? DEFAULTERS VIEW ?????? -->
         <div id="defaultersView" class="hidden fade-in space-y-8">
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-xl font-bold text-rose-400">🚨 Low Attendance Defaulters</h3>
+                <h3 class="text-xl font-bold text-rose-400">???? Low Attendance Defaulters</h3>
                 <p class="text-slate-400 text-sm mt-1">Students below the threshold, grouped by course. Sorted worst-first.</p>
               </div>
               <span id="att-total-defaulters" class="text-[10px] font-bold bg-rose-500/20 text-rose-400 px-3 py-1 rounded-full">-- at risk</span>
@@ -243,7 +243,7 @@
               </tbody>
             </table>
             <div id="emptyState" class="hidden py-24 text-center">
-              <div class="text-4xl mb-4 opacity-10">📭</div>
+              <div class="text-4xl mb-4 opacity-10">????</div>
               <p class="text-slate-500 font-medium">No records matching query</p>
             </div>
           </div>
@@ -252,11 +252,11 @@
         <!-- SPECIAL VIEWS (Enrollments, Email Logs, etc) -->
         <div id="enrollmentsPanel" class="hidden fade-in space-y-8">
 
-          <!-- ── COURSE GROUPS (FOLDERS) ── -->
+          <!-- ?????? COURSE GROUPS (FOLDERS) ?????? -->
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-2xl font-bold">📁 Course Groups</h2>
+                <h2 class="text-2xl font-bold">???? Course Groups</h2>
                 <p class="text-slate-400 text-sm mt-1">Create a folder, add courses to it, then upload one Excel file to enroll students into <em>all</em> courses at once.</p>
               </div>
               <button onclick="openCreateGroupModal()" class="bg-indigo-600 hover:bg-indigo-700 transition px-5 py-2.5 rounded-xl font-bold text-sm">+ New Group</button>
@@ -267,11 +267,11 @@
             </div>
           </div>
 
-          <!-- ── ENROLLMENT INSPECTOR ── -->
+          <!-- ?????? ENROLLMENT INSPECTOR ?????? -->
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
-                <h2 class="text-2xl font-bold">🔍 Enrollment Inspector</h2>
+                <h2 class="text-2xl font-bold">???? Enrollment Inspector</h2>
                 <p class="text-slate-400 text-sm mt-1">Audit or remove individual student links from specific courses.</p>
               </div>
               <div class="flex gap-3 items-center">
@@ -314,7 +314,7 @@
   <!-- MODAL: ADD DEPARTMENT -->
   <div id="modal-dept" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
-      <button onclick="closeModal('dept')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <button onclick="closeModal('dept')" class="absolute top-6 right-6 text-slate-500 font-bold">???</button>
       <h3 class="text-2xl font-bold mb-6">Provision Department</h3>
       <div class="space-y-4">
         <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Code (e.g. CSE)</label><input id="d-id" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
@@ -328,7 +328,7 @@
   <!-- MODAL: ADD COURSE -->
   <div id="modal-course" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-lg p-10 rounded-[40px] shadow-2xl relative fade-in">
-      <button onclick="closeModal('course')" class="absolute top-8 right-8 text-slate-500 font-bold">✕</button>
+      <button onclick="closeModal('course')" class="absolute top-8 right-8 text-slate-500 font-bold">???</button>
       <h3 id="course-modal-title" class="text-2xl font-bold mb-8">Catalog Subject</h3>
       <div class="grid grid-cols-2 gap-4">
         <div class="col-span-2">
@@ -347,7 +347,7 @@
   <!-- MODAL: ADD ASSIGNMENT -->
   <div id="modal-assignment" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-lg p-10 rounded-[40px] shadow-2xl relative fade-in">
-      <button onclick="closeModal('assignment')" class="absolute top-8 right-8 text-slate-500 font-bold">✕</button>
+      <button onclick="closeModal('assignment')" class="absolute top-8 right-8 text-slate-500 font-bold">???</button>
       <h3 class="text-2xl font-bold mb-8">Establish Association</h3>
       <div class="space-y-6">
         <div>
@@ -367,7 +367,7 @@
   <!-- MODAL: CREATE GROUP -->
   <div id="modal-create-group" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
-      <button onclick="closeModal('create-group')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <button onclick="closeModal('create-group')" class="absolute top-6 right-6 text-slate-500 font-bold">???</button>
       <h3 class="text-2xl font-bold mb-6">Create Course Group</h3>
       <div class="space-y-4">
         <div>
@@ -382,7 +382,7 @@
   <!-- MODAL: PROVISION TEACHER -->
   <div id="modal-teacher" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
-      <button onclick="closeModal('teacher')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <button onclick="closeModal('teacher')" class="absolute top-6 right-6 text-slate-500 font-bold">???</button>
       <h3 class="text-2xl font-bold mb-6">Provision Faculty</h3>
       <div class="space-y-4">
         <div>
@@ -402,7 +402,7 @@
   <div id="modal-confirm" class="hidden fixed inset-0 z-[120] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-sm p-8 rounded-[40px] shadow-2xl relative fade-in border-rose-500/20">
       <div class="text-center">
-        <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">⚠️</div>
+        <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">??????</div>
         <h3 id="confirm-title" class="text-xl font-bold mb-2">Are you sure?</h3>
         <p id="confirm-msg" class="text-slate-400 text-sm mb-8">This action may be irreversible.</p>
         <div class="grid grid-cols-2 gap-3">
@@ -417,7 +417,7 @@
   <div id="modal-delete-group" class="hidden fixed inset-0 z-[120] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-sm p-8 rounded-[40px] shadow-2xl relative fade-in border-rose-500/20">
       <div class="text-center">
-        <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">🗑️</div>
+        <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">???????</div>
         <h3 id="del-group-title" class="text-xl font-bold mb-2">Destroy Folder?</h3>
         <p id="del-group-msg" class="text-slate-400 text-sm mb-6">How do you want to handle the students currently enrolled via this group?</p>
         
@@ -440,7 +440,7 @@
   <!-- MODAL: ADD COURSE TO GROUP -->
   <div id="modal-group-course" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
-      <button onclick="closeModal('group-course')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <button onclick="closeModal('group-course')" class="absolute top-6 right-6 text-slate-500 font-bold">???</button>
       <h3 class="text-2xl font-bold mb-2">Add Course to Group</h3>
       <p id="modal-group-course-name" class="text-slate-400 text-sm mb-6"></p>
       <div class="space-y-4">
@@ -462,17 +462,19 @@
 
     const H = () => ({ 'Content-Type':'application/json', 'x-admin-user':authUser, 'x-admin-password':authPass });
     
-    document.addEventListener('DOMContentLoaded', () => {
-      if (authUser && authPass) { showDashboard(); fetchStats(); }
+    if (authUser && authPass) { showDashboard(); fetchStats(); }
 
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
-          handleLoginSubmit();
-        }
-      });
-
-      document.getElementById('loginBtn').addEventListener('click', handleLoginSubmit);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
+        handleLoginSubmit();
+      }
     });
+
+    // Attach listeners directly
+    setTimeout(() => {
+        const lBtn = document.getElementById('loginBtn');
+        if (lBtn) lBtn.onclick = handleLoginSubmit;
+    }, 100);
 
     async function handleLoginSubmit() {
       const errEl = document.getElementById('loginError');
@@ -528,8 +530,8 @@
 
     function togglePassword() {
       const p = document.getElementById('passwordInput'), e = document.getElementById('eye-icon');
-      if (p.type === 'password') { p.type = 'text'; e.textContent = '🔒'; }
-      else { p.type = 'password'; e.textContent = '👁️'; }
+      if (p.type === 'password') { p.type = 'text'; e.textContent = '????'; }
+      else { p.type = 'password'; e.textContent = '???????'; }
     }
 
     const ALL_IDS = ['monitoring','defaulters','departments','courses','assignments','enrollments','teachers','students','email-logs'];
@@ -597,7 +599,7 @@
       });
     }
 
-    // ── ATTENDANCE REPORT ─────────────────────────────────────────────────────
+    // ?????? ATTENDANCE REPORT ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
     let lastAttReport = null;
 
     async function fetchAttendanceReport(forceRefresh = false) {
@@ -672,7 +674,7 @@
       // Defaulters panel - only courses that HAVE defaulters
       const coursesWithDefaulters = report.filter(c => c.defaulterCount > 0);
       if (!coursesWithDefaulters.length) {
-      panel.innerHTML = '<div class="text-center py-12"><div class="text-4xl mb-3">✅</div><div class="text-emerald-400 font-bold">All enrolled students are above the threshold!</div></div>';
+      panel.innerHTML = '<div class="text-center py-12"><div class="text-4xl mb-3">???</div><div class="text-emerald-400 font-bold">All enrolled students are above the threshold!</div></div>';
         return;
       }
 
@@ -700,7 +702,7 @@
                 <td class="px-6 py-3 font-bold text-sm">${d.email}</td>
                 <td class="px-6 py-3 text-slate-400 text-sm font-mono">${d.attended} / ${d.totalSessions}</td>
                 <td class="px-6 py-3"><span class="text-rose-400 font-black text-lg">${d.percentage}%</span></td>
-                <td class="px-6 py-3"><span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">⚠️ Defaulter</span></td>
+                <td class="px-6 py-3"><span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">?????? Defaulter</span></td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -774,12 +776,12 @@
             <div class="font-bold text-slate-200">${s.email}</div>
             <div class="text-[9px] text-slate-600 font-bold uppercase">${s.domain}</div>
           </td>
-          <td class="px-8 py-6"><span class="px-2 py-1 bg-white/5 rounded-lg text-[9px] font-black">${s.year} • ${s.program} • ${s.branch}</span></td>
-          <td class="px-8 py-6 text-right font-mono text-[9px] text-slate-500">${s.deviceId.substring(0,24)}... <button onclick="deleteX('student', '${s.email}')" class="ml-4 text-rose-500 font-bold">✕</button></td>
+          <td class="px-8 py-6"><span class="px-2 py-1 bg-white/5 rounded-lg text-[9px] font-black">${s.year} ??? ${s.program} ??? ${s.branch}</span></td>
+          <td class="px-8 py-6 text-right font-mono text-[9px] text-slate-500">${s.deviceId.substring(0,24)}... <button onclick="deleteX('student', '${s.email}')" class="ml-4 text-rose-500 font-bold">???</button></td>
         </tr>`).join('');
     }
 
-    // ── DEPARTMENTS ──────────────────────────────────────────────────────────
+    // ?????? DEPARTMENTS ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
     async function fetchDepartmentsView() {
       const res = await fetch('/admin-api/departments', { headers: H() });
       const data = await res.json();
@@ -795,7 +797,7 @@
         </tr>`).join('');
     }
 
-    // ── COURSES ──────────────────────────────────────────────────────────────
+    // ?????? COURSES ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
     async function fetchCoursesView() {
       const [dRes, cRes] = await Promise.all([ fetch('/admin-api/departments', { headers: H() }).then(r=>r.json()), fetch('/admin-api/courses', { headers: H() }).then(r=>r.json()) ]);
       allCourses = cRes.courses || [];
@@ -815,7 +817,7 @@
       h.innerHTML = '<th class="px-8 py-5">DEPT</th><th class="px-8 py-5">Subject ID</th><th class="px-8 py-5">Name</th><th class="px-8 py-5">SEM</th><th class="px-8 py-5 text-right">Actions</th>';
       b.innerHTML = filtered.map(c => `
         <tr>
-          <td class="px-8 py-6"><span class="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[9px] font-black">${c.department || '—'}</span></td>
+          <td class="px-8 py-6"><span class="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[9px] font-black">${c.department || '???'}</span></td>
           <td class="px-8 py-6 font-black text-xs text-slate-400">${c.courseId}</td>
           <td class="px-8 py-6 font-bold text-slate-200">${c.name}</td>
           <td class="px-8 py-6 text-xs font-bold text-slate-500">TERM ${c.semester||'?'}</td>
@@ -826,7 +828,7 @@
         </tr>`).join('');
     }
 
-    // ── ASSIGNMENTS ──────────────────────────────────────────────────────────
+    // ?????? ASSIGNMENTS ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
     async function fetchAssignmentsView() {
       const res = await fetch('/admin-api/teacher-courses', { headers: H() });
       const data = await res.json();
@@ -834,7 +836,7 @@
       const h = document.getElementById('tableHead'), b = document.getElementById('tableBody'), r = document.getElementById('tableActionRight'), l = document.getElementById('tableActionLeft');
       h.innerHTML = '<th class="px-8 py-5">Professor</th><th class="px-8 py-5">Assigned Subject</th><th class="px-8 py-5 text-right">Management</th>';
       r.innerHTML = `<button onclick="openAssignmentDialog()" class="bg-indigo-600 px-6 py-2.5 rounded-xl font-bold text-xs">Create Association</button>`;
-      l.innerHTML = `<span class="text-[10px] font-black text-slate-500">Teacher ↔ Subject Bridge Active</span>`;
+      l.innerHTML = `<span class="text-[10px] font-black text-slate-500">Teacher ??? Subject Bridge Active</span>`;
       b.innerHTML = allAssignments.map(a => `
         <tr>
           <td class="px-8 py-6"><div class="font-bold">${a.teacherName}</div><div class="text-[9px] text-slate-500 font-bold">${a.teacherEmail}</div></td>
@@ -871,7 +873,7 @@
       });
     }
 
-    // ── COURSE GROUPS (FOLDERS) ───────────────────────────────────────────────
+    // ?????? COURSE GROUPS (FOLDERS) ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
     let allGroups = [], activeGroupId = null;
 
     async function fetchGroups() {
@@ -892,12 +894,12 @@
           <div class="flex items-start justify-between">
             <div>
               <div class="flex items-center gap-3">
-                <span class="text-xl">📁</span>
+                <span class="text-xl">????</span>
                 <h3 class="text-lg font-bold">${g.name}</h3>
                 <span class="text-[10px] font-bold bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full">${g.courseIds.length} courses</span>
               </div>
               <div class="flex flex-wrap gap-2 mt-3">
-                ${g.courseIds.map(cId => `<span class="flex items-center gap-1 text-xs bg-white/5 border border-white/10 px-3 py-1 rounded-full font-mono">${cId}<button onclick="removeCourseFromGroup('${g._id}','${cId}')" class="text-rose-400 hover:text-rose-300 ml-1 font-bold">×</button></span>`).join('') || '<span class="text-slate-600 text-sm">No courses added yet</span>'}
+                ${g.courseIds.map(cId => `<span class="flex items-center gap-1 text-xs bg-white/5 border border-white/10 px-3 py-1 rounded-full font-mono">${cId}<button onclick="removeCourseFromGroup('${g._id}','${cId}')" class="text-rose-400 hover:text-rose-300 ml-1 font-bold">??</button></span>`).join('') || '<span class="text-slate-600 text-sm">No courses added yet</span>'}
               </div>
             </div>
             <div class="flex gap-2">
@@ -909,7 +911,7 @@
             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bulk Enroll via Excel:</label>
             <input type="file" id="gfile-${g._id}" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleGroupFileSelected('${g._id}')">
             <label for="gfile-${g._id}" class="cursor-pointer text-xs border border-dashed border-indigo-500/40 hover:bg-indigo-500/5 px-4 py-2 rounded-xl text-indigo-400 font-bold transition">
-              <span id="gfile-label-${g._id}">📄 Choose Excel File</span>
+              <span id="gfile-label-${g._id}">???? Choose Excel File</span>
             </label>
             <button onclick="uploadGroupEnrollment('${g._id}')" class="bg-indigo-600 hover:bg-indigo-700 transition text-xs px-5 py-2 rounded-xl font-bold">Enroll into All Courses</button>
             <span id="gmsg-${g._id}" class="text-[10px] font-bold"></span>
@@ -967,7 +969,7 @@
       const select = document.getElementById('gcourse-select');
       const fresh = allCourses.filter(c => !already.includes(c.courseId));
       select.innerHTML = '<option value="">-- Choose a course --</option>' +
-          fresh.map(c => `<option value="${c.courseId}">${c.courseId} — ${c.name}</option>`).join('');
+          fresh.map(c => `<option value="${c.courseId}">${c.courseId} ??? ${c.name}</option>`).join('');
       openModal('group-course');
     }
 
@@ -1017,7 +1019,7 @@
 
     function handleGroupFileSelected(groupId) {
       const file = document.getElementById(`gfile-${groupId}`).files[0];
-      if (file) document.getElementById(`gfile-label-${groupId}`).textContent = '📄 ' + file.name;
+      if (file) document.getElementById(`gfile-label-${groupId}`).textContent = '???? ' + file.name;
     }
 
     async function uploadGroupEnrollment(groupId) {
@@ -1028,19 +1030,19 @@
       const fd = new FormData(); fd.append('file', file);
       const res = await fetch(`/admin-api/course-groups/${groupId}/enroll`, { method: 'POST', headers: { 'x-admin-user': authUser, 'x-admin-password': authPass }, body: fd });
       const data = await res.json();
-      msg.textContent = data.success ? data.message : '❌ ' + data.error;
+      msg.textContent = data.success ? data.message : '??? ' + data.error;
       msg.className = `text-[10px] font-bold ${data.success ? 'text-emerald-400' : 'text-rose-400'}`;
       if (data.success) document.getElementById(`gfile-${groupId}`).value = '';
     }
 
-    // ── ENROLLMENTS (single course) ───────────────────────────────────────────
+    // ?????? ENROLLMENTS (single course) ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
     let allEnrollments = [];
 
     async function fetchEnrollmentCourses() {
       const res = await fetch('/admin-api/courses', { headers: H() });
       const data = await res.json();
       const dd = document.getElementById('enr-course');
-      dd.innerHTML = '<option value="">Target Learning Path</option>' + (data.courses || []).map(c => `<option value="${c.courseId}">${c.courseId} · ${c.name}</option>`).join('');
+      dd.innerHTML = '<option value="">Target Learning Path</option>' + (data.courses || []).map(c => `<option value="${c.courseId}">${c.courseId} ?? ${c.name}</option>`).join('');
       document.getElementById('enrBody').innerHTML = '';
       document.getElementById('enrEmpty').classList.remove('hidden');
       document.getElementById('enr-stats').classList.add('hidden');
@@ -1059,7 +1061,7 @@
       e.classList.add('hidden');
       b.innerHTML = allEnrollments.map(s => {
         const parts = s.email.split('@'), local = parts[0], match = local.match(/^(\d{4})(ug|pg)([a-z]+)(\d+)$/i);
-        const meta = match ? `${match[3].toUpperCase()} Class of ${match[1]}` : parts[1] || '—';
+        const meta = match ? `${match[3].toUpperCase()} Class of ${match[1]}` : parts[1] || '???';
         return `<tr><td class="px-8 py-5 font-bold">${s.email}</td><td class="px-8 py-5"><span class="px-2 py-1 bg-white/5 rounded-lg text-[9px] font-bold">${meta}</span></td><td class="px-8 py-5 text-slate-500 font-mono text-xs">${new Date(s.enrolledAt).toLocaleDateString()}</td><td class="px-8 py-5 text-right"><button onclick="removeEnrollment('${courseId}','${s.email}')" class="text-rose-500 text-xs font-bold hover:underline">X</button></td></tr>`;
       }).join('');
     }
