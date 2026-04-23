@@ -21,6 +21,15 @@ const jsQR = require('jsqr');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const archiver = require('archiver');
+const {
+  extractEmbedding,
+  verifyEmbedding,
+  storeFaceEmbedding,
+  getFaceEmbedding,
+  deleteFaceEmbedding,
+} = require('./src/faceService');
+
+
 // We will use native console.log since Render handles timestamping and log rotation automatically.
 
 const fsFilters = require('fs');
@@ -240,6 +249,8 @@ const DeviceSchema = new mongoose.Schema({
   email: { type: String, required: true, lowercase: true, index: true },
   deviceId: { type: String, required: true, unique: true, index: true }, // stored as SHA-256 hash from client
   registeredAt: { type: Date, default: Date.now },
+  faceVerificationEnabled: { type: Boolean, default: false },
+  faceRegisteredAt: { type: Date, default: null },
 });
 const Device = mongoose.model('Device', DeviceSchema);
 
@@ -401,6 +412,18 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
+// [SECURITY] Master Secret Middleware (Issue #10)
+// Validates that the request is coming from the official mobile app
+function verifyAppSecret(req, res, next) {
+  const secret = req.headers['x-app-secret'];
+  if (!secret || secret !== process.env.APP_SECRET_KEY) {
+    console.warn(`[SECURITY] Blocked request from ${req.ip} — Invalid/Missing Master Secret`);
+    return res.status(403).json({ success: false, error: 'Unauthorized: Access restricted to AEGIS App.' });
+  }
+  next();
+}
+
+
 // ==========================================
 // MIDDLEWARE (SECURITY & PARSERS)
 // ==========================================
@@ -427,6 +450,16 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: Math.floor(process.uptime()) });
 });
+
+// [SPEED] Keep server awake on Render free tier (Issue #10)
+// Prevents 30-60 second cold starts between class periods
+setInterval(async () => {
+  try {
+    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+    await fetch(`${baseUrl}/health`);
+  } catch (err) {}
+}, 10 * 60 * 1000);
+
 
 const APP_SECRET_KEY = process.env.APP_SECRET_KEY;
 const LEGACY_APP_SECRET = process.env.LEGACY_APP_SECRET || '';  // old key — remove after all users update APK
@@ -754,6 +787,111 @@ app.post('/api/student/decode-qr', upload.single('qrimage'), async (req, res) =>
   }
 });
 
+// ─────────────────────────────────────────
+// POST /api/student/register-face
+// Called once — first time student scans QR
+// ─────────────────────────────────────────
+app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
+  const { email, deviceId, image } = req.body;
+  if (!email || !deviceId || !image) {
+    return res.json({ success: false, error: 'Missing required fields' });
+  }
+
+  try {
+    const emailLower = email.toLowerCase().trim();
+    // 1. Verify device binding in MongoDB
+    const student = await Device.findOne({ email: emailLower, deviceId });
+
+    if (!student) {
+      return res.json({ success: false, error: 'Device not registered to this email' });
+    }
+
+    // 2. Already registered — block re-registration
+    if (student.faceVerificationEnabled) {
+      return res.json({ success: false, error: 'Face already registered. Contact admin to reset.' });
+    }
+
+    // 3. Extract embedding via Python service
+    const faceData = await extractEmbedding(image);
+
+    if (faceData.face_confidence < 0.85) {
+      return res.json({
+        success: false,
+        error: 'Face not clear enough. Try better lighting and face the camera directly.',
+      });
+    }
+
+    // 4. Store embedding in Supabase
+    await storeFaceEmbedding(emailLower, faceData.embedding, faceData.face_confidence);
+
+    // 5. Update MongoDB flag — no embedding stored here
+    student.faceVerificationEnabled = true;
+    student.faceRegisteredAt = new Date();
+    await student.save();
+
+    console.log(`[FACE] Registered face for: ${emailLower}`);
+    return res.json({ success: true, message: 'Face registered successfully' });
+
+  } catch (err) {
+    console.error('register-face error:', err.message);
+    return res.json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────
+// POST /api/student/verify-face
+// Called on every attendance scan
+// ─────────────────────────────────────────
+app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
+  const { email, deviceId, image } = req.body;
+  if (!email || !deviceId || !image) {
+    return res.json({ success: false, error: 'Missing required fields' });
+  }
+
+  try {
+    const emailLower = email.toLowerCase().trim();
+    // 1. Check MongoDB for device + registration status
+    const student = await Device.findOne({ email: emailLower, deviceId });
+
+    if (!student) {
+      return res.json({ success: false, error: 'Device not registered' });
+    }
+
+    // 2. No face yet — tell app to register first
+    if (!student.faceVerificationEnabled) {
+      return res.json({ success: false, needsRegistration: true });
+    }
+
+    // 3. Get embedding from Supabase
+    const faceRecord = await getFaceEmbedding(emailLower);
+
+    // 4. Supabase missing but MongoDB says registered — Reset and ask to re-register
+    if (!faceRecord) {
+      student.faceVerificationEnabled = false;
+      await student.save();
+      return res.json({ success: false, needsRegistration: true });
+    }
+
+    // 5. Compare via Python service
+    const result = await verifyEmbedding(image, faceRecord.embedding);
+
+    if (!result.match) {
+      return res.json({
+        success: false,
+        error: 'Face did not match. Ensure good lighting and only your face is visible.',
+        similarity: result.similarity,
+      });
+    }
+
+    return res.json({ success: true, verified: true, similarity: result.similarity });
+
+  } catch (err) {
+    console.error('verify-face error:', err.message);
+    return res.json({ success: false, error: err.message });
+  }
+});
+
+
 app.post('/api/student/submit', async (req, res) => {
   const { email, deviceId, sessionCode, lat, lon } = req.body;
   const signature = req.headers['x-signature'];
@@ -790,9 +928,10 @@ app.post('/api/student/submit', async (req, res) => {
   if (!activeSession) return res.json({ success: false, error: 'Invalid or expired session QR.' });
   if (activeSession.stoppedAt) return res.json({ success: false, error: 'This session has ended.' });
 
-  // Check 10-min expiry (session.sessionId is Date.now() timestamp)
-  if (Date.now() - activeSession.sessionId > 10 * 60 * 1000)
-    return res.json({ success: false, error: 'Session expired (10 mins limit exceeded).' });
+  // Check session expiry (session.sessionId is Date.now() timestamp at creation)
+  const durationLimit = activeSession.durationMs || 10 * 60 * 1000;
+  if (Date.now() - activeSession.sessionId > durationLimit)
+    return res.json({ success: false, error: 'Session expired (duration limit exceeded).' });
 
   // Domain restriction
   if (activeSession.teacherEmail) {
@@ -1974,6 +2113,56 @@ app.post('/admin-api/course-groups/:id/enroll', upload.single('file'), async (re
     });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
+
+// ── Admin: Face Record Management ─────────────────────────────────────────────
+app.get('/admin-api/face/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) return res.json({ success: true, list: [] });
+
+    // Search by email or name (if name exists in registration data, else just email)
+    const query = q.toLowerCase();
+    const list = await Device.find({
+      $or: [
+        { email: { $regex: query, $options: 'i' } },
+        { deviceId: { $regex: query, $options: 'i' } }
+      ]
+    }).limit(20);
+
+    const result = list.map(d => ({
+      email: d.email,
+      deviceId: d.deviceId,
+      registeredAt: d.registeredAt,
+      faceEnabled: d.faceVerificationEnabled,
+      faceRegisteredAt: d.faceRegisteredAt
+    }));
+
+    res.json({ success: true, list: result });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
+app.delete('/admin-api/face/reset/:email', async (req, res) => {
+  try {
+    const email = req.params.email.toLowerCase();
+    
+    // 1. Remove from Supabase
+    await deleteFaceEmbedding(email);
+
+    // 2. Update MongoDB
+    const student = await Device.findOne({ email });
+    if (student) {
+      student.faceVerificationEnabled = false;
+      student.faceRegisteredAt = null;
+      await student.save();
+    }
+
+    console.log(`[ADMIN] Face reset for: ${email}`);
+    res.json({ success: true, message: `Face record cleared for ${email}. Student can now re-register.` });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 
 // ==========================================
 // BACKGROUND JOB: LOW ATTENDANCE EMAIL ALERTS

@@ -85,7 +85,9 @@
         <div class="space-y-1">
           <div onclick="Main.switchTab('teachers')" id="tab-teachers" class="sidebar-item sidebar-item-inactive"><span>🛡️</span> Faculty Whitelist</div>
           <div onclick="Main.switchTab('students')" id="tab-students" class="sidebar-item sidebar-item-inactive"><span>📱</span> Device Bindings</div>
+          <div onclick="Main.switchTab('face')" id="tab-face" class="sidebar-item sidebar-item-inactive"><span>🤳</span> Face Management</div>
         </div>
+
       </div>
     </div>
 
@@ -299,6 +301,41 @@
           </div>
         </div>
 
+        <!-- FACE MANAGEMENT VIEW -->
+        <div id="faceView" class="hidden fade-in space-y-8">
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-2xl font-bold">🤳 Face Record Management</h2>
+                <p class="text-slate-400 text-sm mt-1">Search and reset student face registrations.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <input type="text" id="face-search-input" onkeyup="FaceView.onSearchChange(event)" placeholder="Search student email..." class="flex-1 bg-white/5 border border-white/10 text-white px-6 py-4 rounded-2xl outline-none font-bold">
+              <button onclick="FaceView.search()" class="bg-indigo-600 hover:bg-indigo-700 transition px-8 rounded-2xl font-bold">Search</button>
+            </div>
+          </div>
+
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="glass-card rounded-[32px] overflow-hidden">
+              <table class="w-full text-left">
+                <thead class="bg-slate-900/40 border-b border-white/5">
+                  <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <th class="px-8 py-5">📧 Student Email</th>
+                    <th class="px-8 py-5">📅 Face Registered</th>
+                    <th class="px-8 py-5">🛡️ Status</th>
+                    <th class="px-8 py-5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="faceTableBody" class="divide-y divide-white/5">
+                  <tr><td colspan="4" class="px-8 py-20 text-center text-slate-500 font-bold">Search for a student to manage their face record</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+
       </div>
     </div>
   </main>
@@ -442,6 +479,8 @@
   <script src="js/views/assignments.js"></script>
   <script src="js/views/enrollments.js"></script>
   <script src="js/views/emailLogs.js"></script>
+  <script src="js/views/face.js"></script>
   <script src="js/main.js"></script>
+
 </body>
 </html>

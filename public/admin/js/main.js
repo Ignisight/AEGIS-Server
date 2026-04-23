@@ -65,7 +65,7 @@ const Main = {
 
   switchTab(tab) {
     State.ui.currentTab = tab;
-    const ALL_IDS = ['monitoring', 'defaulters', 'departments', 'courses', 'assignments', 'enrollments', 'teachers', 'students', 'email-logs'];
+    const ALL_IDS = ['monitoring', 'defaulters', 'departments', 'courses', 'assignments', 'enrollments', 'teachers', 'students', 'face', 'email-logs'];
     
     ALL_IDS.forEach(t => {
       const item = document.getElementById('tab-' + t);
@@ -81,6 +81,7 @@ const Main = {
     document.getElementById('monitoringView').classList.toggle('hidden', tab !== 'monitoring');
     document.getElementById('defaultersView').classList.toggle('hidden', tab !== 'defaulters');
     document.getElementById('enrollmentsPanel').classList.toggle('hidden', tab !== 'enrollments');
+    document.getElementById('faceView').classList.toggle('hidden', tab !== 'face');
     
     const isNormalTable = ['teachers', 'students', 'departments', 'courses', 'assignments', 'email-logs'].includes(tab);
     document.getElementById('tableView').classList.toggle('hidden', !isNormalTable);
@@ -96,6 +97,9 @@ const Main = {
         break;
       case 'students':
         StudentsView.load();
+        break;
+      case 'face':
+        FaceView.init();
         break;
       case 'departments':
         DepartmentsView.load();
@@ -113,6 +117,7 @@ const Main = {
         EmailLogsView.load();
         break;
     }
+
   }
 };
 
