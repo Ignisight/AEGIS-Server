@@ -33,7 +33,7 @@
   <div id="loginScreen" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#020617] p-4">
     <div class="glass w-full max-w-sm p-8 rounded-[32px] border-white/10 shadow-2xl">
       <div class="text-center mb-10">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20 text-2xl">???????</div>
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20 text-2xl">A</div>
         <h2 class="text-2xl font-bold tracking-tight">Access Controlled</h2>
         <p class="text-slate-500 text-sm">Sign in to A.E.G.I.S Commander</p>
       </div>
@@ -42,7 +42,7 @@
         <div class="relative">
           <input type="password" id="passwordInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none pr-12" placeholder="Password">
           <button type="button" onclick="togglePassword()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
-            <span id="eye-icon">???????</span>
+            <span id="eye-icon">VIEW</span>
           </button>
         </div>
         <button type="button" id="loginBtn" onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all">Authenticate</button>
@@ -55,7 +55,7 @@
   <aside id="sidebar" class="hidden w-72 h-full glass border-r flex flex-col z-40">
     <div class="p-6 border-b border-white/5">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-xl shadow-lg">???????</div>
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-xl shadow-lg">A</div>
         <div>
           <h1 class="text-lg font-bold">A.E.G.I.S</h1>
           <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Command Center</p>
@@ -530,8 +530,8 @@
 
     function togglePassword() {
       const p = document.getElementById('passwordInput'), e = document.getElementById('eye-icon');
-      if (p.type === 'password') { p.type = 'text'; e.textContent = '????'; }
-      else { p.type = 'password'; e.textContent = '???????'; }
+      if (p.type === 'password') { p.type = 'text'; e.textContent = 'HIDE'; }
+      else { p.type = 'password'; e.textContent = 'VIEW'; }
     }
 
     const ALL_IDS = ['monitoring','defaulters','departments','courses','assignments','enrollments','teachers','students','email-logs'];
