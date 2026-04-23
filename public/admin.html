@@ -75,7 +75,7 @@
         <div class="nav-group-label">Overview</div>
         <div class="space-y-1">
           <div onclick="switchTab('monitoring')" id="tab-monitoring" class="sidebar-item sidebar-item-active"><span>📡</span> Monitoring</div>
-          <div onclick="switchTab('defaulters')" id="tab-defaulters" class="sidebar-item sidebar-item-inactive"><span>🚨</span> Defaulters <span id="att-total-defaulters-badge" class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 hidden">0</span></div>
+          <div onclick="switchTab('defaulters')" id="tab-defaulters" class="sidebar-item sidebar-item-inactive"><span>🚨</span> Attendance Insights <span id="att-total-defaulters-badge" class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 hidden">0</span></div>
           <div onclick="switchTab('email-logs')" id="tab-email-logs" class="sidebar-item sidebar-item-inactive"><span>📜</span> Alert Logs</div>
         </div>
       </div>
@@ -187,12 +187,18 @@
             </div>
           </div>
 
+          </div>
+        </div>
+
+        <!-- 🚨 ATTENDANCE INSIGHTS VIEW 🚨 -->
+        <div id="defaultersView" class="hidden fade-in space-y-8">
+          
           <!-- 📊 COURSE ATTENDANCE SUMMARY STRIP 📊 -->
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 class="text-xl font-bold">📊 Course Attendance Overview</h3>
-                <p class="text-slate-400 text-sm mt-1">Live snapshot of attendance % per course. Click a card to jump to its defaulters.</p>
+                <p class="text-slate-400 text-sm mt-1">Live snapshot of attendance % per course. Click a card to scroll to its detailed list.</p>
               </div>
               <div class="flex items-center gap-4">
                 <div class="flex items-center gap-2 glass-card px-4 py-2 rounded-2xl">
@@ -208,14 +214,11 @@
               <div class="text-center text-slate-600 py-6 col-span-4 text-sm">Loading course data...</div>
             </div>
           </div>
-        </div>
 
-        <!-- 🚨 DEFAULTERS VIEW 🚨 -->
-        <div id="defaultersView" class="hidden fade-in space-y-8">
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-xl font-bold text-rose-400">🚨 Low Attendance Defaulters</h3>
+                <h3 class="text-xl font-bold text-rose-400">🚨 Detailed Defaulter List</h3>
                 <p class="text-slate-400 text-sm mt-1">Students below the threshold, grouped by course. Sorted worst-first.</p>
               </div>
               <span id="att-total-defaulters" class="text-[10px] font-bold bg-rose-500/20 text-rose-400 px-3 py-1 rounded-full">-- at risk</span>
@@ -675,7 +678,7 @@
         const color = pct >= 75 ? 'text-emerald-400' : 'text-rose-400';
         const bg = c.defaulterCount > 0 ? 'border border-rose-500/20' : 'border border-white/5';
         return `
-          <div class="glass-card ${bg} rounded-2xl p-5 flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-transform" onclick="switchTab('defaulters'); setTimeout(() => scrollToDefaulterCourse('${c.courseId}'), 100)">
+          <div class="glass-card ${bg} rounded-2xl p-5 flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-transform" onclick="scrollToDefaulterCourse('${c.courseId}')">
             <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${c.courseId}</span>
             <span class="${color} text-3xl font-black">${pct}%</span>
             <div class="text-[11px] text-slate-500">${c.courseName}</div>
@@ -914,7 +917,7 @@
                 <span class="text-[10px] font-bold bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full">${g.courseIds.length} courses</span>
               </div>
               <div class="flex flex-wrap gap-2 mt-3">
-                ${g.courseIds.map(cId => `<span class="flex items-center gap-1 text-xs bg-white/5 border border-white/10 px-3 py-1 rounded-full font-mono">${cId}<button onclick="removeCourseFromGroup('${g._id}','${cId}')" class="text-rose-400 hover:text-rose-300 ml-1 font-bold">??</button></span>`).join('') || '<span class="text-slate-600 text-sm">No courses added yet</span>'}
+                ${g.courseIds.map(cId => `<span class="flex items-center gap-1 text-xs bg-white/5 border border-white/10 px-3 py-1 rounded-full font-mono">${cId}<button onclick="removeCourseFromGroup('${g._id}','${cId}')" class="text-rose-400 hover:text-rose-300 ml-1 font-bold">✕</button></span>`).join('') || '<span class="text-slate-600 text-sm">No courses added yet</span>'}
               </div>
             </div>
             <div class="flex gap-2">
