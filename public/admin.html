@@ -41,8 +41,14 @@
         <input type="text" id="usernameInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Username">
         <div class="relative">
           <input type="password" id="passwordInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none pr-12" placeholder="Password">
-          <button type="button" onclick="togglePassword()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
-            <span id="eye-icon">VIEW</span>
+          <button type="button" onclick="togglePassword()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+            <svg id="eye-icon-open" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <svg id="eye-icon-closed" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+            </svg>
           </button>
         </div>
         <button type="button" id="loginBtn" onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all">Authenticate</button>
@@ -529,9 +535,18 @@
     function logout() { localStorage.clear(); location.reload(); }
 
     function togglePassword() {
-      const p = document.getElementById('passwordInput'), e = document.getElementById('eye-icon');
-      if (p.type === 'password') { p.type = 'text'; e.textContent = 'HIDE'; }
-      else { p.type = 'password'; e.textContent = 'VIEW'; }
+      const p = document.getElementById('passwordInput');
+      const open = document.getElementById('eye-icon-open');
+      const closed = document.getElementById('eye-icon-closed');
+      if (p.type === 'password') {
+        p.type = 'text';
+        open.classList.add('hidden');
+        closed.classList.remove('hidden');
+      } else {
+        p.type = 'password';
+        open.classList.remove('hidden');
+        closed.classList.add('hidden');
+      }
     }
 
     const ALL_IDS = ['monitoring','defaulters','departments','courses','assignments','enrollments','teachers','students','email-logs'];
@@ -646,12 +661,12 @@
       const totalDefaulters = report.reduce((s, c) => s + c.defaulterCount, 0);
       document.getElementById('att-total-defaulters').textContent = totalDefaulters + ' at risk';
       
-      const badge = document.getElementById('att-total-defaulters-badge');
+      const badgeEl = document.getElementById('att-total-defaulters-badge');
       if (totalDefaulters > 0) {
-        badge.textContent = totalDefaulters;
-        badge.classList.remove('hidden');
+        badgeEl.textContent = totalDefaulters;
+        badgeEl.classList.remove('hidden');
       } else {
-        badge.classList.add('hidden');
+        badgeEl.classList.add('hidden');
       }
 
       // Summary strip cards
