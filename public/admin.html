@@ -63,7 +63,8 @@
       <div>
         <div class="nav-group-label">Overview</div>
         <div class="space-y-1">
-          <div onclick="switchTab('monitoring')" id="tab-monitoring" class="sidebar-item sidebar-item-active"><span>📊</span> Dashboard</div>
+          <div onclick="switchTab('monitoring')" id="tab-monitoring" class="sidebar-item sidebar-item-active"><span>📊</span> Monitoring</div>
+          <div onclick="switchTab('defaulters')" id="tab-defaulters" class="sidebar-item sidebar-item-inactive"><span>🚨</span> Defaulters <span id="att-total-defaulters-badge" class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 hidden">0</span></div>
           <div onclick="switchTab('email-logs')" id="tab-email-logs" class="sidebar-item sidebar-item-inactive"><span>📨</span> Alert Logs</div>
         </div>
       </div>
@@ -196,21 +197,22 @@
               <div class="text-center text-slate-600 py-6 col-span-4 text-sm">Loading course data...</div>
             </div>
           </div>
+        </div>
 
-          <!-- ── LOW ATTENDANCE PANEL ── -->
+        <!-- ── DEFAULTERS VIEW ── -->
+        <div id="defaultersView" class="hidden fade-in space-y-8">
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-xl font-bold">🚨 Low Attendance Defaulters</h3>
-                <p class="text-slate-400 text-sm mt-1">Students below 75% threshold, grouped by course. Sorted worst-first.</p>
+                <h3 class="text-xl font-bold text-rose-400">🚨 Low Attendance Defaulters</h3>
+                <p class="text-slate-400 text-sm mt-1">Students below the threshold, grouped by course. Sorted worst-first.</p>
               </div>
               <span id="att-total-defaulters" class="text-[10px] font-bold bg-rose-500/20 text-rose-400 px-3 py-1 rounded-full">-- at risk</span>
             </div>
             <div id="att-defaulters-panel" class="space-y-4">
-              <div class="text-center text-slate-600 py-6 text-sm">Loading...</div>
+              <div class="text-center text-slate-600 py-6 text-sm">Nothing to report.</div>
             </div>
           </div>
-
         </div>
 
         <!-- GENERIC TABLE VIEW (Teachers, Students, Departments, etc) -->
@@ -476,7 +478,7 @@
     
     function logout() { localStorage.clear(); location.reload(); }
 
-    const ALL_IDS = ['monitoring','departments','courses','assignments','enrollments','teachers','students','email-logs'];
+    const ALL_IDS = ['monitoring','defaulters','departments','courses','assignments','enrollments','teachers','students','email-logs'];
     function switchTab(tab) {
       currentTab = tab;
       ALL_IDS.forEach(t => {
@@ -491,12 +493,13 @@
       
       // Control Visibility
       document.getElementById('monitoringView').classList.toggle('hidden', tab !== 'monitoring');
+      document.getElementById('defaultersView').classList.toggle('hidden', tab !== 'defaulters');
       document.getElementById('enrollmentsPanel').classList.toggle('hidden', tab !== 'enrollments');
       
       const isNormalTable = ['teachers','students','departments','courses','assignments','email-logs'].includes(tab);
       document.getElementById('tableView').classList.toggle('hidden', !isNormalTable);
       
-      if (tab === 'monitoring') { fetchStats(); fetchAttendanceReport(); }
+      if (tab === 'monitoring' || tab === 'defaulters') { fetchStats(); fetchAttendanceReport(); }
       else if (tab === 'teachers' || tab === 'students') fetchData();
       else if (tab === 'departments') fetchDepartmentsView();
       else if (tab === 'courses') fetchCoursesView();
@@ -585,8 +588,15 @@
       }
 
       const totalDefaulters = report.reduce((s, c) => s + c.defaulterCount, 0);
-      badge.textContent = totalDefaulters + ' at risk';
-      badge.className = `text-[10px] font-bold px-3 py-1 rounded-full ${totalDefaulters > 0 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`;
+      document.getElementById('att-total-defaulters').textContent = totalDefaulters + ' at risk';
+      
+      const badge = document.getElementById('att-total-defaulters-badge');
+      if (totalDefaulters > 0) {
+        badge.textContent = totalDefaulters;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
 
       // Summary strip cards
       strip.innerHTML = report.map(c => {
@@ -594,7 +604,7 @@
         const color = pct >= 75 ? 'text-emerald-400' : 'text-rose-400';
         const bg = c.defaulterCount > 0 ? 'border border-rose-500/20' : 'border border-white/5';
         return `
-          <div class="glass-card ${bg} rounded-2xl p-5 flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-transform" onclick="scrollToDefaulterCourse('${c.courseId}')">
+          <div class="glass-card ${bg} rounded-2xl p-5 flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-transform" onclick="switchTab('defaulters'); setTimeout(() => scrollToDefaulterCourse('${c.courseId}'), 100)">
             <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${c.courseId}</span>
             <span class="${color} text-3xl font-black">${pct}%</span>
             <div class="text-[11px] text-slate-500">${c.courseName}</div>
