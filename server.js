@@ -26,6 +26,9 @@ const {
   verifyEmbedding,
   storeFaceEmbedding,
   getFaceEmbedding,
+  updateActiveTemplate,
+  flagAccount,
+  resetToGolden,
   deleteFaceEmbedding,
 } = require('./src/faceService');
 
@@ -246,7 +249,7 @@ const Attendance = mongoose.model('Attendance', AttendanceSchema);
 
 // Device Bindings (permanent — never auto-deleted)
 const DeviceSchema = new mongoose.Schema({
-  email: { type: String, required: true, lowercase: true, index: true },
+  email: { type: String, required: true, unique: true, lowercase: true, index: true },
   deviceId: { type: String, required: true, unique: true, index: true }, // stored as SHA-256 hash from client
   registeredAt: { type: Date, default: Date.now },
   faceVerificationEnabled: { type: Boolean, default: false },
@@ -345,6 +348,18 @@ const LocationEventSchema = new mongoose.Schema({
 });
 LocationEventSchema.index({ timestamp: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 }); // auto-delete after 7 days
 const LocationEvent = mongoose.model('LocationEvent', LocationEventSchema);
+// Security Events (biometric failures, flags, and drift alarms)
+const SecurityEventSchema = new mongoose.Schema({
+  email: { type: String, required: true, lowercase: true, index: true },
+  event: { type: String, required: true }, // 'face_fail', 'face_flag', 'device_mismatch'
+  reason: { type: String },
+  scoreActive: { type: Number },
+  scoreGolden: { type: Number },
+  drift: { type: Number },
+  timestamp: { type: Date, default: Date.now },
+});
+SecurityEventSchema.index({ timestamp: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 }); // Keep for 90 days
+const SecurityEvent = mongoose.model('SecurityEvent', SecurityEventSchema);
 
 // FIX: Centralized input validation helpers (Issue #5)
 function isValidEmail(email) {
@@ -799,16 +814,35 @@ app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
 
   try {
     const emailLower = email.toLowerCase().trim();
-    // 1. Verify device binding in MongoDB
-    const student = await Device.findOne({ email: emailLower, deviceId });
 
-    if (!student) {
-      return res.json({ success: false, error: 'Device not registered to this email' });
+    // 1. Strict 1:1:1 Binding Check
+    // Check if this DEVICE is already bound to SOMEONE ELSE
+    const deviceOwner = await Device.findOne({ deviceId });
+    if (deviceOwner && deviceOwner.email !== emailLower) {
+      return res.json({ 
+        success: false, 
+        error: 'This device is already registered to another student. Sharing phones is not allowed.' 
+      });
+    }
+
+    // Check if this EMAIL is already bound to a DIFFERENT DEVICE
+    const student = await Device.findOne({ email: emailLower });
+    if (student && student.deviceId !== deviceId) {
+      return res.json({ 
+        success: false, 
+        error: 'Your email is already bound to a different device. Contact Admin to change devices.' 
+      });
     }
 
     // 2. Already registered — block re-registration
-    if (student.faceVerificationEnabled) {
+    if (student && student.faceVerificationEnabled) {
       return res.json({ success: false, error: 'Face already registered. Contact admin to reset.' });
+    }
+
+    // 3. Create record if it doesn't exist (Student hasn't even logged in yet? Shouldn't happen but safe-guard)
+    let targetStudent = student;
+    if (!targetStudent) {
+      targetStudent = await Device.create({ email: emailLower, deviceId });
     }
 
     // 3. Extract embedding via Python service
@@ -840,7 +874,7 @@ app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
 
 // ─────────────────────────────────────────
 // POST /api/student/verify-face
-// Called on every attendance scan
+// Now handles adaptive update + flagging
 // ─────────────────────────────────────────
 app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
   const { email, deviceId, image } = req.body;
@@ -862,20 +896,52 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
       return res.json({ success: false, needsRegistration: true });
     }
 
-    // 3. Get embedding from Supabase
+    // 3. Get both templates from Supabase
     const faceRecord = await getFaceEmbedding(emailLower);
-
-    // 4. Supabase missing but MongoDB says registered — Reset and ask to re-register
     if (!faceRecord) {
       student.faceVerificationEnabled = false;
       await student.save();
       return res.json({ success: false, needsRegistration: true });
     }
 
-    // 5. Compare via Python service
-    const result = await verifyEmbedding(image, faceRecord.embedding);
+    // 4. Verify via Python
+    const result = await verifyEmbedding(image, faceRecord);
 
+    // 5. Handle flagging
+    if (result.should_flag) {
+      await flagAccount(emailLower, result.flag_reason);
+
+      await SecurityEvent.create({
+        email: emailLower,
+        event: 'face_flag',
+        reason: result.flag_reason,
+        scoreActive: result.score_active,
+        scoreGolden: result.score_golden,
+        drift: result.drift,
+      });
+
+      if (result.match) {
+        return res.json({
+          success: true,
+          verified: true,
+          flagged: true,
+          warning: 'Account flagged for security review.',
+          scoreActive: result.score_active,
+          scoreGolden: result.score_golden,
+        });
+      }
+    }
+
+    // 6. Failed verification
     if (!result.match) {
+      await SecurityEvent.create({
+        email: emailLower,
+        event: 'face_fail',
+        scoreActive: result.score_active,
+        scoreGolden: result.score_golden,
+        drift: result.drift,
+      });
+
       return res.json({
         success: false,
         error: 'Face did not match. Ensure good lighting and only your face is visible.',
@@ -2120,7 +2186,6 @@ app.get('/admin-api/face/search', async (req, res) => {
     const { q } = req.query;
     if (!q || q.length < 2) return res.json({ success: true, list: [] });
 
-    // Search by email or name (if name exists in registration data, else just email)
     const query = q.toLowerCase();
     const list = await Device.find({
       $or: [
@@ -2129,39 +2194,82 @@ app.get('/admin-api/face/search', async (req, res) => {
       ]
     }).limit(20);
 
-    const result = list.map(d => ({
-      email: d.email,
-      deviceId: d.deviceId,
-      registeredAt: d.registeredAt,
-      faceEnabled: d.faceVerificationEnabled,
-      faceRegisteredAt: d.faceRegisteredAt
+    const result = await Promise.all(list.map(async d => {
+      const faceRecord = await getFaceEmbedding(d.email);
+      return {
+        email: d.email,
+        deviceId: d.deviceId,
+        registeredAt: d.registeredAt,
+        faceEnabled: d.faceVerificationEnabled,
+        faceRegisteredAt: d.faceRegisteredAt,
+        // New biometric fields
+        flagged: faceRecord?.flagged || false,
+        flaggedReason: faceRecord?.flagged_reason || null,
+        driftScore: faceRecord?.drift_score || 0,
+        updateCount: faceRecord?.update_count || 0
+      };
     }));
 
     res.json({ success: true, list: result });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
+// Full Purge - delete both golden and active
 app.delete('/admin-api/face/reset/:email', async (req, res) => {
   try {
     const email = req.params.email.toLowerCase();
-    
-    // 1. Remove from Supabase
     await deleteFaceEmbedding(email);
-
-    // 2. Update MongoDB
     const student = await Device.findOne({ email });
     if (student) {
       student.faceVerificationEnabled = false;
       student.faceRegisteredAt = null;
       await student.save();
     }
-
-    console.log(`[ADMIN] Face reset for: ${email}`);
-    res.json({ success: true, message: `Face record cleared for ${email}. Student can now re-register.` });
+    res.json({ success: true, message: `Face record fully purged for ${email}.` });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }
 });
+
+// Restore to Golden - revert active to golden, clear flags
+app.post('/admin-api/face/restore-golden', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.json({ success: false, error: 'Email required' });
+    const emailLower = email.toLowerCase().trim();
+    await resetToGolden(emailLower);
+    res.json({ success: true, message: `Restored ${emailLower} to golden template. Flags cleared.` });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// ── Admin: The "Nuclear" Unbind ─────────────────────────────────────────────
+// Clears EVERYTHING: Device ID binding + Face Template + Flag status
+app.post('/admin-api/student/unbind', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.json({ success: false, error: 'Email required' });
+    const emailLower = email.toLowerCase().trim();
+
+    // 1. Clear Biometrics (Supabase)
+    await deleteFaceEmbedding(emailLower);
+
+    // 2. Delete Device Binding (MongoDB)
+    const result = await Device.deleteOne({ email: emailLower });
+
+    if (result.deletedCount === 0) {
+      return res.json({ success: false, error: 'No active binding found for this email.' });
+    }
+
+    console.log(`[ADMIN] Nuclear Unbind executed for: ${emailLower}`);
+    res.json({ success: true, message: `Binding and Biometrics fully cleared for ${emailLower}. Student can now register on any device.` });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+
 
 
 // ==========================================
