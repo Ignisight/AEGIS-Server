@@ -1365,8 +1365,15 @@ app.get('/admin-api/attendance-report', async (req, res) => {
       if (!enrollments.length) continue;
 
       const passing = [], defaulters = [];
+      const attendanceCounts = await Attendance.aggregate([
+        { $match: { sessionId: { $in: sessionIds } } },
+        { $group: { _id: "$email", count: { $sum: 1 } } }
+      ]);
+      const attendanceMap = {};
+      attendanceCounts.forEach(a => attendanceMap[a._id] = a.count);
+
       for (const { email } of enrollments) {
-        const attended = await Attendance.countDocuments({ email, sessionId: { $in: sessionIds } });
+        const attended = attendanceMap[email] || 0;
         const percentage = Math.round((attended / totalSessions) * 100);
         const record = { email, attended, totalSessions, percentage };
         if (percentage < threshold) defaulters.push(record);
