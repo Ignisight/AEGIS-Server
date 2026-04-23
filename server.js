@@ -1714,9 +1714,14 @@ app.get('/admin-api/teacher-courses', async (req, res) => {
     const assignments = await TeacherCourse.find().sort({ assignedAt: -1 });
     // Enrich with course names and teacher names
     const courses = await Course.find();
-    const teachers = await Teacher.find({}, 'email name');
+    const [teachers, approved] = await Promise.all([
+      Teacher.find({}, 'email name'),
+      ApprovedTeacher.find({}, 'email name')
+    ]);
     const courseMap = {}; courses.forEach(c => courseMap[c.courseId] = c.name);
-    const teacherMap = {}; teachers.forEach(t => teacherMap[t.email] = t.name);
+    const teacherMap = {};
+    approved.forEach(t => teacherMap[t.email.toLowerCase()] = t.name);
+    teachers.forEach(t => teacherMap[t.email.toLowerCase()] = t.name);
     const enriched = assignments.map(a => ({
       _id: a._id,
       teacherEmail: a.teacherEmail,
