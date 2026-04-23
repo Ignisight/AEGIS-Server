@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A.E.G.I.S &#128752; Admin Command</title>
+  
+  <!-- External Dependencies -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="h-screen flex antialiased">
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#020617] p-4">
+    <div class="glass w-full max-w-sm p-8 rounded-[32px] border-white/10 shadow-2xl">
+      <div class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20 text-2xl">🛡️</div>
+        <h2 class="text-2xl font-bold tracking-tight">Access Controlled</h2>
+        <p class="text-slate-500 text-sm">Sign in to A.E.G.I.S Commander</p>
+      </div>
+      <div id="loginForm" class="space-y-4">
+        <input type="text" id="usernameInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Username">
+        <div class="relative">
+          <input type="password" id="passwordInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none pr-12" placeholder="Password">
+          <button type="button" onclick="Main.togglePassword()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+            <svg id="eye-icon-open" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <svg id="eye-icon-closed" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+            </svg>
+          </button>
+        </div>
+        <button type="button" id="loginBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all">Authenticate</button>
+        <div id="loginError" class="hidden text-rose-400 text-xs text-center font-bold"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="hidden w-72 h-full glass border-r flex flex-col z-40">
+    <div class="p-6 border-b border-white/5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-xl shadow-lg">A</div>
+        <div>
+          <h1 class="text-lg font-bold">A.E.G.I.S</h1>
+          <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Command Center</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto p-4 space-y-8">
+      <div>
+        <div class="nav-group-label">Overview</div>
+        <div class="space-y-1">
+          <div onclick="Main.switchTab('monitoring')" id="tab-monitoring" class="sidebar-item sidebar-item-inactive"><span>📡</span> Monitoring</div>
+          <div onclick="Main.switchTab('defaulters')" id="tab-defaulters" class="sidebar-item sidebar-item-inactive"><span>🚨</span> Attendance Insights <span id="att-total-defaulters-badge" class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 hidden">0</span></div>
+          <div onclick="Main.switchTab('email-logs')" id="tab-email-logs" class="sidebar-item sidebar-item-inactive"><span>📜</span> Alert Logs</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="nav-group-label">Academic</div>
+        <div class="space-y-1">
+          <div onclick="Main.switchTab('departments')" id="tab-departments" class="sidebar-item sidebar-item-inactive"><span>🏢</span> Departments</div>
+          <div onclick="Main.switchTab('courses')" id="tab-courses" class="sidebar-item sidebar-item-inactive"><span>📚</span> Course Catalog</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="nav-group-label">Operations</div>
+        <div class="space-y-1">
+          <div onclick="Main.switchTab('enrollments')" id="tab-enrollments" class="sidebar-item sidebar-item-inactive"><span>📝</span> Student Enrollment</div>
+          <div onclick="Main.switchTab('assignments')" id="tab-assignments" class="sidebar-item sidebar-item-inactive"><span>👨‍🏫</span> Teacher Assign</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="nav-group-label">Identity</div>
+        <div class="space-y-1">
+          <div onclick="Main.switchTab('teachers')" id="tab-teachers" class="sidebar-item sidebar-item-inactive"><span>🛡️</span> Faculty Whitelist</div>
+          <div onclick="Main.switchTab('students')" id="tab-students" class="sidebar-item sidebar-item-inactive"><span>📱</span> Device Bindings</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-white/5">
+      <button onclick="Auth.logout()" class="w-full flex items-center justify-center gap-2 p-3 text-rose-400 font-bold hover:bg-rose-500/5 rounded-xl transition-all">
+        <span class="text-sm italic">Secure Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <main id="dashboard" class="hidden flex-1 flex flex-col overflow-hidden bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] bg-fixed">
+    <header class="h-16 border-b border-white/5 flex items-center justify-between px-8 glass shrink-0">
+      <div class="flex items-center gap-2">
+        <span class="text-slate-600">/</span>
+        <span id="currentPageTitle" class="text-sm font-bold text-white">Dashboard</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <div id="connectionStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+          <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+          <span class="text-[10px] font-bold text-emerald-400 tracking-widest uppercase">Live Nodes</span>
+        </div>
+      </div>
+    </header>
+
+    <div id="contentScroll" class="flex-1 overflow-y-auto p-8 relative">
+      <div class="max-w-6xl mx-auto space-y-8">
+        
+        <!-- DASHBOARD / MONITORING -->
+        <div id="monitoringView" class="fade-in space-y-8">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="glass-card p-6 rounded-2xl flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Faculty</span>
+                <span class="text-slate-700 text-lg">👨‍🏫</span>
+              </div>
+              <span id="stat-teachers" class="text-3xl font-bold">0</span>
+              <span class="text-[10px] text-slate-600">Approved teachers</span>
+            </div>
+            <div class="glass-card p-6 rounded-2xl flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Sessions</span>
+                <span class="text-slate-700 text-lg">📡</span>
+              </div>
+              <span id="stat-sessions" class="text-3xl font-bold text-indigo-400">0</span>
+              <span class="text-[10px] text-slate-600">Active broadcasts</span>
+            </div>
+            <div class="glass-card p-6 rounded-2xl flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">HW Bindings</span>
+                <span class="text-slate-700 text-lg">📱</span>
+              </div>
+              <span id="stat-devices" class="text-3xl font-bold text-purple-400">0</span>
+              <span class="text-[10px] text-slate-600">Verified hardware</span>
+            </div>
+            <div class="glass-card p-6 rounded-2xl flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Attendance</span>
+                <span class="text-slate-700 text-lg">✅</span>
+              </div>
+              <span id="stat-attendance" class="text-3xl font-bold text-emerald-400">0</span>
+              <span class="text-[10px] text-slate-600">Total check-ins</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="glass-card p-8 rounded-3xl h-[400px]">
+              <h3 class="text-sm font-bold text-slate-400 mb-6 uppercase tracking-wider">Department Distribution</h3>
+              <canvas id="branchChart"></canvas>
+            </div>
+            <div class="glass-card p-8 rounded-3xl h-[400px]">
+              <h3 class="text-sm font-bold text-slate-400 mb-6 uppercase tracking-wider">Session Frequency</h3>
+              <canvas id="hourlyChart"></canvas>
+            </div>
+          </div>
+
+          <div class="glass-card p-6 rounded-3xl border-indigo-500/10">
+            <div class="flex items-center justify-between mb-8">
+              <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Server Diagnostics</h3>
+              <button onclick="MonitoringView.fetchStats()" class="text-indigo-400 text-xs font-bold hover:underline">RE-MAP CLOUD</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="p-5 rounded-2xl bg-white/5 flex flex-col">
+                <span class="text-[10px] font-bold text-slate-500 uppercase mb-1">Database Latency</span>
+                <span id="health-latency" class="text-xl font-bold text-slate-200">--ms</span>
+              </div>
+              <div class="p-5 rounded-2xl bg-white/5 flex flex-col">
+                <span class="text-[10px] font-bold text-slate-500 uppercase mb-1">Process Uptime</span>
+                <span id="health-uptime" class="text-xl font-bold text-slate-200">--</span>
+              </div>
+              <div class="p-5 rounded-2xl bg-white/5 flex flex-col">
+                <span class="text-[10px] font-bold text-slate-500 uppercase mb-1">Memory Profile</span>
+                <span id="health-memory" class="text-xl font-bold text-slate-200">--MB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ATTENDANCE INSIGHTS -->
+        <div id="defaultersView" class="hidden fade-in space-y-8">
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h3 class="text-xl font-bold">📊 Course Attendance Overview</h3>
+                <p class="text-slate-400 text-sm mt-1">Live snapshot of attendance % per course.</p>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 glass-card px-4 py-2 rounded-2xl">
+                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Threshold</label>
+                  <input id="att-threshold-input" type="number" min="1" max="100" value="75" class="w-14 bg-transparent text-indigo-400 font-black text-lg text-center outline-none" />
+                  <span class="text-slate-500 font-bold">%</span>
+                  <button onclick="MonitoringView.saveThreshold()" class="text-[10px] font-bold text-indigo-400 border border-indigo-500/30 px-2 py-1 rounded-lg hover:bg-indigo-500/10 transition">Save</button>
+                </div>
+                <button onclick="MonitoringView.fetchReport()" class="text-indigo-400 text-xs font-bold border border-indigo-500/20 px-4 py-2 rounded-xl hover:bg-indigo-500/5 transition">🔄 Refresh</button>
+              </div>
+            </div>
+            <div id="att-summary-strip" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div class="text-center text-slate-600 py-6 col-span-4 text-sm">Loading data...</div>
+            </div>
+          </div>
+
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-rose-400">🚨 Detailed Defaulter List</h3>
+                <p class="text-slate-400 text-sm mt-1">Students below threshold.</p>
+              </div>
+              <span id="att-total-defaulters" class="text-[10px] font-bold bg-rose-500/20 text-rose-400 px-3 py-1 rounded-full">-- at risk</span>
+            </div>
+            <div id="att-defaulters-panel" class="space-y-4">
+              <div class="text-center text-slate-600 py-6 text-sm">Nothing to report.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABLE VIEW -->
+        <div id="tableView" class="hidden fade-in space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass p-4 rounded-2xl">
+            <div class="flex items-center gap-2" id="tableActionLeft"></div>
+            <div id="tableActionRight"></div>
+          </div>
+          <div class="glass-card rounded-3xl overflow-hidden shadow-2xl">
+            <table class="w-full text-left">
+              <thead class="bg-slate-900/40 border-b border-white/5">
+                <tr id="tableHead" class="text-[10px] uppercase font-bold text-slate-500 tracking-widest"></tr>
+              </thead>
+              <tbody id="tableBody" class="text-sm divide-y divide-white/5"></tbody>
+            </table>
+            <div id="emptyState" class="hidden py-20 text-center space-y-3">
+              <div class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center mx-auto text-2xl">🔍</div>
+              <p class="text-slate-400 font-bold">No records found</p>
+              <p class="text-slate-600 text-xs">Try adjusting your filters or add a new entry</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ENROLLMENTS VIEW -->
+        <div id="enrollmentsPanel" class="hidden fade-in space-y-12">
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-2xl font-bold">📁 Course Groups</h2>
+                <p class="text-slate-400 text-sm mt-1">Bulk enrollment folders.</p>
+              </div>
+              <button onclick="Modal.open('create-group')" class="bg-indigo-600 hover:bg-indigo-700 transition px-5 py-2.5 rounded-xl font-bold text-sm">+ New Group</button>
+            </div>
+            <div id="groupsList" class="space-y-4"></div>
+          </div>
+
+          <!-- Divider -->
+          <div class="flex items-center gap-4">
+            <div class="flex-1 h-px bg-white/5"></div>
+            <span class="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Enrollment Inspector</span>
+            <div class="flex-1 h-px bg-white/5"></div>
+          </div>
+
+          <div class="glass p-8 rounded-[40px] space-y-6">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h2 class="text-2xl font-bold">🔍 Enrollment Inspector</h2>
+              </div>
+              <div class="flex gap-3 items-center">
+                <select id="enr-course" onchange="EnrollmentsView.loadEnrollments()" class="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-5 py-2.5 rounded-2xl font-bold outline-none text-sm"></select>
+                <div class="px-4 py-2.5 rounded-2xl border border-white/10 flex items-center gap-3">
+                  <span class="text-[10px] font-bold text-slate-500">ENROLLED</span>
+                  <span id="enr-count" class="text-lg font-bold">0</span>
+                </div>
+              </div>
+            </div>
+            <div id="enr-stats" class="hidden flex justify-end">
+              <button onclick="EnrollmentsView.clearEnrollments()" class="text-rose-400 font-bold text-xs border border-rose-500/20 px-4 py-2 rounded-xl hover:bg-rose-500/5">DELETE ENTIRE BATCH</button>
+            </div>
+            <div class="glass-card rounded-[32px] overflow-hidden">
+              <table class="w-full text-left">
+                <thead class="bg-slate-900/40 border-b border-white/5">
+                  <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <th class="px-8 py-5">🆔 Identity</th>
+                    <th class="px-8 py-5">🏫 Academic Path</th>
+                    <th class="px-8 py-5">🖋️ Signed On</th>
+                    <th class="px-8 py-5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="enrBody" class="divide-y divide-white/5"></tbody>
+              </table>
+              <div id="enrEmpty" class="py-20 text-center space-y-3">
+                <div class="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center mx-auto text-2xl">🎓</div>
+                <p class="text-slate-400 font-bold">No course selected</p>
+                <p class="text-slate-600 text-xs">Pick a course from the dropdown above to inspect its enrollments</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- MODALS -->
+  <div id="modal-dept" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="Modal.close('dept')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <h3 class="text-2xl font-bold mb-6">Provision Department</h3>
+      <div class="space-y-4">
+        <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Code</label><input id="d-id" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
+        <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Name</label><input id="d-name" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
+        <button onclick="DepartmentsView.add()" class="w-full bg-indigo-600 font-bold py-4 rounded-2xl mt-4">Execute Creation</button>
+        <p id="d-msg" class="text-center text-xs font-bold"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-course" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-lg p-10 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="Modal.close('course')" class="absolute top-8 right-8 text-slate-500 font-bold">✕</button>
+      <h3 id="course-modal-title" class="text-2xl font-bold mb-8">Catalog Subject</h3>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Target Department</label>
+          <select id="c-dept" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></select>
+        </div>
+        <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Subject ID</label><input id="c-id" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
+        <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Semester #</label><input id="c-sem" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
+        <div class="col-span-2"><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Full Nomenclature</label><input id="c-name" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
+        <button id="course-modal-btn" class="col-span-2 bg-indigo-600 font-bold py-4 rounded-2xl mt-4">Save</button>
+      </div>
+      <p id="c-msg" class="text-center text-xs font-bold mt-4"></p>
+    </div>
+  </div>
+
+  <div id="modal-assignment" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-lg p-10 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="Modal.close('assignment')" class="absolute top-8 right-8 text-slate-500 font-bold">✕</button>
+      <h3 class="text-2xl font-bold mb-8">Establish Association</h3>
+      <div class="space-y-6">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Faculty Member</label>
+          <select id="a-teacher" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Academic Subject</label>
+          <select id="a-course" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></select>
+        </div>
+        <button onclick="AssignmentsView.confirmAdd()" class="w-full bg-indigo-600 font-bold py-4 rounded-2xl mt-4">Create Linkage</button>
+        <p id="a-msg" class="text-center text-xs font-bold"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-create-group" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="Modal.close('create-group')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <h3 class="text-2xl font-bold mb-6">Create Course Group</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Group Name</label>
+          <input id="group-name-input" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold">
+        </div>
+        <button onclick="EnrollmentsView.addGroup()" class="w-full bg-indigo-600 font-bold py-4 rounded-2xl mt-2">Initialize Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-teacher" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="Modal.close('teacher')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <h3 class="text-2xl font-bold mb-6">Provision Faculty</h3>
+      <div class="space-y-4">
+        <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Name</label><input id="t-name" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
+        <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Email</label><input id="t-email" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
+        <button onclick="TeachersView.confirmAdd()" class="w-full bg-indigo-600 font-bold py-4 rounded-2xl mt-2">Authorize</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-confirm" class="hidden fixed inset-0 z-[120] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-sm p-8 rounded-[40px] shadow-2xl relative fade-in border-rose-500/20">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">⚠️</div>
+        <h3 id="confirm-title" class="text-xl font-bold mb-2">Are you sure?</h3>
+        <p id="confirm-msg" class="text-slate-400 text-sm mb-8"></p>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="Modal.close('confirm')" class="bg-white/5 hover:bg-white/10 font-bold py-3 rounded-xl transition">Cancel</button>
+          <button id="confirm-btn" class="bg-rose-600 hover:bg-rose-500 font-bold py-3 rounded-xl shadow-lg shadow-rose-500/20 transition">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-delete-group" class="hidden fixed inset-0 z-[120] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-sm p-8 rounded-[40px] shadow-2xl relative fade-in border-rose-500/20">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">🔥</div>
+        <h3 id="del-group-title" class="text-xl font-bold mb-2">Destroy?</h3>
+        <p id="del-group-msg" class="text-slate-400 text-sm mb-6"></p>
+        <div class="space-y-3 mb-8">
+          <button id="btn-del-group-full" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-4 rounded-2xl text-xs shadow-lg shadow-rose-500/20 transition">
+            <div id="btn-del-group-full-text">CONFIRM</div>
+            <div id="btn-del-group-full-sub" class="text-[10px] opacity-80 font-normal italic">Purge all data</div>
+          </button>
+        </div>
+        <button onclick="Modal.close('delete-group')" class="text-slate-500 text-xs font-bold hover:underline">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-group-course" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
+      <button onclick="Modal.close('group-course')" class="absolute top-6 right-6 text-slate-500 font-bold">✕</button>
+      <h3 class="text-2xl font-bold mb-2">Add Course to Group</h3>
+      <p id="modal-group-course-name" class="text-slate-400 text-sm mb-6"></p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Select Course</label>
+          <select id="gcourse-select" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></select>
+        </div>
+        <button onclick="EnrollmentsView.confirmAddCourseToGroup()" class="w-full bg-indigo-600 font-bold py-4 rounded-2xl mt-2">Add to Group</button>
+        <p id="gcourse-msg" class="text-center text-xs font-bold"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts Loading Order -->
+  <script src="js/state.js"></script>
+  <script src="js/utils/sanitize.js"></script>
+  <script src="js/utils/modal.js"></script>
+  <script src="js/utils/confirm.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/views/monitoring.js"></script>
+  <script src="js/views/teachers.js"></script>
+  <script src="js/views/students.js"></script>
+  <script src="js/views/departments.js"></script>
+  <script src="js/views/courses.js"></script>
+  <script src="js/views/assignments.js"></script>
+  <script src="js/views/enrollments.js"></script>
+  <script src="js/views/emailLogs.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1273,17 +1273,13 @@ if (!ADMIN_USER || !ADMIN_PASSWORD) {
   console.warn('  ⚠️ [SECURITY] ADMIN_USER or ADMIN_PASSWORD not set in environment. Admin Dashboard is DISABLED.');
 }
 
-app.get('/', (req, res) => res.redirect('/admin'));
+app.get('/', (req, res) => res.redirect('/admin/'));
 
-app.get('/admin', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  const adminPath = path.join(__dirname, 'public', 'admin.html');
-  if (fs.existsSync(adminPath)) {
-    res.sendFile(adminPath);
-  } else {
-    res.status(404).send('<h1>Admin Panel Not Found</h1><p>Expected file at: ' + adminPath + '</p>');
+app.use('/admin', express.static(path.join(__dirname, 'public', 'admin'), {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache');
   }
-});
+}));
 
 // Use express.json() if it's not applied globally to admin-api
 app.post('/admin-api/login', express.json(), (req, res) => {
