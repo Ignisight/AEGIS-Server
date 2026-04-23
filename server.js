@@ -1896,8 +1896,17 @@ app.patch('/admin-api/course-groups/:id/remove-course', express.json(), async (r
 // DELETE a group
 app.delete('/admin-api/course-groups/:id', async (req, res) => {
   try {
-    await CourseGroup.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
+    const { id } = req.params;
+    const { flush } = req.query;
+    const group = await CourseGroup.findById(id);
+    if (!group) return res.json({ success: false, error: 'Group not found' });
+
+    if (flush === 'true') {
+      await StudentCourse.deleteMany({ courseId: { $in: group.courseIds } });
+    }
+
+    await CourseGroup.findByIdAndDelete(id);
+    res.json({ success: true, flushed: flush === 'true' });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
 

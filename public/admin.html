@@ -406,6 +406,28 @@
     </div>
   </div>
 
+  <!-- MODAL: DELETE GROUP (WITH OPTIONS) -->
+  <div id="modal-delete-group" class="hidden fixed inset-0 z-[120] modal-backdrop flex items-center justify-center p-4">
+    <div class="glass w-full max-w-sm p-8 rounded-[40px] shadow-2xl relative fade-in border-rose-500/20">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6">🗑️</div>
+        <h3 id="del-group-title" class="text-xl font-bold mb-2">Destroy Folder?</h3>
+        <p class="text-slate-400 text-sm mb-6">How do you want to handle the students currently enrolled via this group?</p>
+        
+        <div class="space-y-3 mb-8">
+          <button id="btn-del-group-only" class="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl text-xs transition border border-white/5">
+            FOLDER ONLY<br><span class="text-[10px] opacity-40 font-normal italic">Keep students in courses</span>
+          </button>
+          <button id="btn-del-group-full" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-4 rounded-2xl text-xs shadow-lg shadow-rose-500/20 transition">
+            FULL WIPE<br><span class="text-[10px] opacity-80 font-normal italic">Remove students from all courses</span>
+          </button>
+        </div>
+        
+        <button onclick="closeModal('delete-group')" class="text-slate-500 text-xs font-bold hover:underline">Nevermind, cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: ADD COURSE TO GROUP -->
   <div id="modal-group-course" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-8 rounded-[40px] shadow-2xl relative fade-in">
@@ -837,11 +859,21 @@
     }
 
     async function deleteGroup(id, name) {
-      askConfirm(`Delete "${name}"?`, 'The students will remain enrolled in individual courses. Only the group folder is destroyed.', async () => {
-        const res = await fetch(`/admin-api/course-groups/${id}`, { method: 'DELETE', headers: H() });
-        const data = await res.json();
-        if (data.success) { allGroups = allGroups.filter(g => g._id !== id); renderGroups(); }
-      });
+      document.getElementById('del-group-title').textContent = `Destroy "${name}"?`;
+      document.getElementById('btn-del-group-only').onclick = () => confirmDeleteGroup(id, false);
+      document.getElementById('btn-del-group-full').onclick = () => confirmDeleteGroup(id, true);
+      openModal('delete-group');
+    }
+
+    async function confirmDeleteGroup(id, flush) {
+      const res = await fetch(`/admin-api/course-groups/${id}?flush=${flush}`, { method: 'DELETE', headers: H() });
+      const data = await res.json();
+      if (data.success) {
+        allGroups = allGroups.filter(g => g._id !== id);
+        renderGroups();
+        closeModal('delete-group');
+        if (flush) fetchAttendanceReport(true); // refresh monitoring if students wiped
+      }
     }
 
     async function openAddCourseToGroup(groupId) {
