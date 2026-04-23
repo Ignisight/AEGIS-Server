@@ -458,10 +458,6 @@
 
 
   <script>
-    window.onerror = function(msg, url, line) {
-      alert("CRITICAL ERROR: " + msg + "\nAt: " + url + ":" + line);
-      return false;
-    };
     let authUser = localStorage.getItem('adminUser') || '', authPass = localStorage.getItem('adminPass') || '', currentTab = 'monitoring', branchChart, hourlyChart, allTeachers = [], allStudents = [], renderedStudents = [], allCourses = [], allAssignments = [], allDepts = [], currentGroupId = null;
 
     const H = () => ({ 'Content-Type':'application/json', 'x-admin-user':authUser, 'x-admin-password':authPass });
@@ -473,6 +469,8 @@
         handleLoginSubmit();
       }
     });
+
+    document.getElementById('loginBtn').addEventListener('click', handleLoginSubmit);
 
     async function handleLoginSubmit() {
       const errEl = document.getElementById('loginError');
@@ -1193,7 +1191,7 @@
           <td class="px-8 py-6 text-slate-400 text-xs">${log.subject}</td>
           <td class="px-8 py-6">
             <span class="px-2 py-1 rounded-lg text-[9px] font-black uppercase ${log.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">
-              ${log.status} ${log.error ? `• ${log.error}` : ''}
+              ${log.status} ${log.error ? ` - ${log.error}` : ''}
             </span>
           </td>
           <td class="px-8 py-6 text-right font-mono text-[10px] text-slate-500">${new Date(log.sentAt).toLocaleString()}</td>
