@@ -305,14 +305,6 @@ const CourseGroupSchema = new mongoose.Schema({
 });
 const CourseGroup = mongoose.model('CourseGroup', CourseGroupSchema);
 
-// Email Delivery Logs (prevents spamming and respects 400/day limit)
-const EmailLogSchema = new mongoose.Schema({
-  email: { type: String, required: true, lowercase: true, index: true },
-  courseIds: [{ type: String }],
-  sentAt: { type: Date, default: Date.now, index: true },
-});
-const EmailLog = mongoose.model('EmailLog', EmailLogSchema);
-
 // Admin-configurable Settings (key-value store)
 const SettingSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true },
