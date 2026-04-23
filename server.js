@@ -1674,6 +1674,24 @@ app.post('/admin-api/courses', async (req, res) => {
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
+app.put('/admin-api/courses/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, semester, department } = req.body;
+    const course = await Course.findOneAndUpdate(
+      { courseId: id.toUpperCase() },
+      { 
+        name: name ? name.trim() : undefined, 
+        semester: semester ? semester.trim() : undefined, 
+        department: department ? department.trim().toUpperCase() : undefined 
+      },
+      { new: true }
+    );
+    if (!course) return res.json({ success: false, error: 'Course not found' });
+    res.json({ success: true, course });
+  } catch (err) { res.json({ success: false, error: err.message }); }
+});
+
 app.delete('/admin-api/courses/:id', async (req, res) => {
   try {
     const courseId = req.params.id;

@@ -322,7 +322,7 @@
   <div id="modal-course" class="hidden fixed inset-0 z-[110] modal-backdrop flex items-center justify-center p-4">
     <div class="glass w-full max-w-lg p-10 rounded-[40px] shadow-2xl relative fade-in">
       <button onclick="closeModal('course')" class="absolute top-8 right-8 text-slate-500 font-bold">✕</button>
-      <h3 class="text-2xl font-bold mb-8">Catalog Subject</h3>
+      <h3 id="course-modal-title" class="text-2xl font-bold mb-8">Catalog Subject</h3>
       <div class="grid grid-cols-2 gap-4">
         <div class="col-span-2">
           <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Target Department</label>
@@ -331,7 +331,7 @@
         <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Subject ID</label><input id="c-id" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
         <div><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Semester #</label><input id="c-sem" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
         <div class="col-span-2"><label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Full Nomenclature</label><input id="c-name" class="w-full bg-white/5 border border-white/10 text-white px-5 py-4 rounded-2xl outline-none font-bold"></div>
-        <button onclick="addCourse()" class="col-span-2 bg-indigo-600 font-bold py-4 rounded-2xl mt-4">Append to Catalog</button>
+        <button id="course-modal-btn" onclick="addCourse()" class="col-span-2 bg-indigo-600 font-bold py-4 rounded-2xl mt-4">Append to Catalog</button>
       </div>
       <p id="c-msg" class="text-center text-xs font-bold mt-4"></p>
     </div>
@@ -717,13 +717,16 @@
       dd.innerHTML = '<option value="">Target Domain</option>' + dRes.departments.map(d=>`<option value="${d.deptId}">${d.name}</option>`).join('');
       const h = document.getElementById('tableHead'), b = document.getElementById('tableBody'), r = document.getElementById('tableActionRight');
       h.innerHTML = '<th class="px-8 py-5">Subject ID</th><th class="px-8 py-5">Name</th><th class="px-8 py-5">SEM</th><th class="px-8 py-5 text-right">Actions</th>';
-      r.innerHTML = `<button onclick="openModal('course')" class="bg-indigo-600 px-6 py-2.5 rounded-xl font-bold text-xs">New Subject</button>`;
+      r.innerHTML = `<button onclick="openAddCourseModal()" class="bg-indigo-600 px-6 py-2.5 rounded-xl font-bold text-xs">New Subject</button>`;
       b.innerHTML = allCourses.map(c => `
         <tr>
           <td class="px-8 py-6 font-black text-xs text-slate-400">${c.courseId}</td>
           <td class="px-8 py-6 font-bold text-slate-200">${c.name}</td>
           <td class="px-8 py-6 text-xs font-bold text-slate-500">TERM ${c.semester||'?'}</td>
-          <td class="px-8 py-6 text-right"><button onclick="deleteCourse('${c.courseId}')" class="text-rose-500/30 hover:text-rose-500 font-bold text-xs">UNLINK</button></td>
+          <td class="px-8 py-6 text-right space-x-4">
+            <button onclick="openEditCourseModal('${c.courseId}')" class="text-indigo-400 font-bold text-xs hover:underline">EDIT</button>
+            <button onclick="deleteCourse('${c.courseId}')" class="text-rose-500/30 hover:text-rose-500 font-bold text-xs uppercase">Unlink</button>
+          </td>
         </tr>`).join('');
     }
 
@@ -941,6 +944,43 @@
       const d=await res.json();
       if(d.success){ closeModal('course'); fetchCoursesView(); }
       else{ m.textContent = d.error; m.className = 'text-rose-400'; }
+    }
+
+    function openEditCourseModal(id) {
+      const c = allCourses.find(x => x.courseId === id);
+      if (!c) return;
+      document.getElementById('course-modal-title').textContent = 'Edit Subject';
+      document.getElementById('course-modal-btn').textContent = 'Save Changes';
+      document.getElementById('course-modal-btn').onclick = () => confirmEditCourse(id);
+      document.getElementById('c-id').value = c.courseId;
+      document.getElementById('c-id').disabled = true; // ID cannot be changed
+      document.getElementById('c-name').value = c.name;
+      document.getElementById('c-sem').value = c.semester || '';
+      document.getElementById('c-dept').value = c.department || '';
+      document.getElementById('c-msg').textContent = '';
+      openModal('course');
+    }
+
+    async function confirmEditCourse(id) {
+      const name = document.getElementById('c-name').value, semester = document.getElementById('c-sem').value, department = document.getElementById('c-dept').value, m = document.getElementById('c-msg');
+      const res = await fetch(`/admin-api/courses/${id}`, { method:'PUT', headers:H(), body:JSON.stringify({name,semester,department}) });
+      const d = await res.json();
+      if (d.success) { closeModal('course'); fetchCoursesView(); }
+      else { m.textContent = d.error; m.className = 'text-rose-400'; }
+    }
+
+    // Reset modal when opening for "Add"
+    function openAddCourseModal() {
+      document.getElementById('course-modal-title').textContent = 'Catalog Subject';
+      document.getElementById('course-modal-btn').textContent = 'Append to Catalog';
+      document.getElementById('course-modal-btn').onclick = addCourse;
+      document.getElementById('c-id').value = '';
+      document.getElementById('c-id').disabled = false;
+      document.getElementById('c-name').value = '';
+      document.getElementById('c-sem').value = '';
+      document.getElementById('c-dept').value = '';
+      document.getElementById('c-msg').textContent = '';
+      openModal('course');
     }
 
     function openTeacherDialog() {
