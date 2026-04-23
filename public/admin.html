@@ -462,15 +462,17 @@
 
     const H = () => ({ 'Content-Type':'application/json', 'x-admin-user':authUser, 'x-admin-password':authPass });
     
-    if (authUser && authPass) { showDashboard(); fetchStats(); }
+    document.addEventListener('DOMContentLoaded', () => {
+      if (authUser && authPass) { showDashboard(); fetchStats(); }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
-        handleLoginSubmit();
-      }
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
+          handleLoginSubmit();
+        }
+      });
+
+      document.getElementById('loginBtn').addEventListener('click', handleLoginSubmit);
     });
-
-    document.getElementById('loginBtn').addEventListener('click', handleLoginSubmit);
 
     async function handleLoginSubmit() {
       const errEl = document.getElementById('loginError');
