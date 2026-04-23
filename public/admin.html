@@ -37,7 +37,7 @@
         <h2 class="text-2xl font-bold tracking-tight">Access Controlled</h2>
         <p class="text-slate-500 text-sm">Sign in to A.E.G.I.S Commander</p>
       </div>
-      <form id="loginForm" class="space-y-4">
+      <div id="loginForm" class="space-y-4">
         <input type="text" id="usernameInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Username">
         <div class="relative">
           <input type="password" id="passwordInput" required class="w-full bg-slate-900/50 border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none pr-12" placeholder="Password">
@@ -45,9 +45,9 @@
             <span id="eye-icon">👁️</span>
           </button>
         </div>
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all">Authenticate</button>
+        <button type="button" id="loginBtn" onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all">Authenticate</button>
         <div id="loginError" class="hidden text-rose-400 text-xs text-center font-bold"></div>
-      </form>
+      </div>
     </div>
   </div>
 
@@ -468,13 +468,23 @@
     
     if (authUser && authPass) { showDashboard(); fetchStats(); }
 
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
+        handleLoginSubmit();
+      }
+    });
+
+    async function handleLoginSubmit() {
       const errEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
       errEl.classList.add('hidden');
+      btn.textContent = 'Authenticating...';
+      btn.disabled = true;
       
       try {
         const user = document.getElementById('usernameInput').value, pass = document.getElementById('passwordInput').value;
+        if (!user || !pass) throw new Error('Enter both credentials');
+
         const res = await fetch('/admin-api/login', { 
           method:'POST', 
           headers:{'Content-Type':'application/json'}, 
@@ -483,23 +493,29 @@
         
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || `Server returned ${res.status}`);
+          throw new Error(data.error || `Access Denied (${res.status})`);
         }
         
         const data = await res.json();
         if (data.success) {
           authUser = user; authPass = pass;
           localStorage.setItem('adminUser', user); localStorage.setItem('adminPass', pass);
-          showDashboard(); fetchStats(); fetchAttendanceReport();
+          showDashboard(); 
+          fetchStats(); 
+          fetchAttendanceReport();
         } else {
-          throw new Error('Authentication Failed');
+          throw new Error('Invalid Credentials');
         }
       } catch (err) {
         console.error('Login Error:', err);
         errEl.textContent = err.message;
         errEl.classList.remove('hidden');
+        alert("LOGIN FAILED: " + err.message);
+      } finally {
+        btn.textContent = 'Authenticate';
+        btn.disabled = false;
       }
-    });
+    }
 
     function showDashboard() {
       document.getElementById('loginScreen').classList.add('hidden');
