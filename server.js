@@ -81,21 +81,24 @@ async function sendEmail(to, subject, html) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-// Send student notifications via Brevo (Attendance Alerts Only)
+// Send student notifications via Email Octopus (Attendance Alerts Only)
 async function sendStudentEmail(to, subject, html) {
-  if (!BREVO_API_KEY) {
-    console.log('  ⚠️  BREVO_API_KEY not configured.');
-    return { success: false, error: 'Email service not configured.' };
+  const API_KEY = process.env.EMAIL_OCTOPUS_API_KEY;
+  if (!API_KEY) {
+    console.log('  ⚠️  EMAIL_OCTOPUS_API_KEY not configured. Falling back to security provider.');
+    return sendEmail(to, subject, html);
   }
   try {
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const res = await fetch('https://emailoctopus.com/api/1.1/emails/transactional', {
       method: 'POST',
-      headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
-        to: [{ email: to }],
-        subject,
-        htmlContent: html,
+        api_key: API_KEY,
+        subject: subject,
+        from_name: EMAIL_FROM_NAME,
+        from_address: EMAIL_FROM,
+        to: to,
+        html_message: html,
       }),
     });
     return res.ok ? { success: true } : { success: false };
