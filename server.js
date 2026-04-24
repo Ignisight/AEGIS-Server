@@ -1,9 +1,10 @@
+require('dotenv').config();
+
 // =============================================
 // Attendance System — MongoDB Atlas Edition
 // =============================================
 
 process.env.TZ = 'Asia/Kolkata';
-require('dotenv').config();
 console.log('🚀 [STARTUP] A.E.G.I.S Booting Sequence Initiated...');
 
 const express = require('express');
@@ -13,6 +14,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
@@ -220,6 +222,7 @@ const SessionSchema = new mongoose.Schema({
   stoppedAt: { type: Date, default: null },
   lat: { type: Number, default: null },
   lon: { type: Number, default: null },
+  courseId: { type: String, default: null },
   radius: { type: Number, default: 80 },  // geofence radius in metres
   durationMs: { type: Number, default: null },  // null = use 10-min auto-close default
 });
@@ -1127,30 +1130,137 @@ app.get('/api/student/courses', async (req, res) => {
 // ==========================================
 
 app.post('/api/start-session', async (req, res) => {
-  const { sessionName, lat, lon, teacherEmail } = req.body;
+  const { sessionName, lat, lon, teacherEmail, durationMins, radiusMeters, courseId } = req.body;
   if (!sessionName || !sessionName.trim())
     return res.json({ success: false, error: 'Session name is required' });
+  if (!courseId)
+    return res.json({ success: false, error: 'Please select a course' });
 
-  const { durationMs, radius } = req.body; // optional — teacher sets via app
+  const durationMs = durationMins ? parseInt(durationMins) * 60 * 1000 : null;
+  const radius = parseInt(radiusMeters) || 80;
+
   const id = Date.now();
   const code = generateSessionCode();
 
   await Session.create({
     sessionId: id,
     name: sessionName.trim(),
+    courseId,
     code,
     teacherEmail: (teacherEmail || '').toLowerCase().trim(),
     createdAt: new Date(),
     active: true,
     lat: lat || null,
     lon: lon || null,
-    durationMs: durationMs || null,   // null = fallback to 10 min auto-close
-    radius: radius || 80,     // metres — default 80 m
+    durationMs: durationMs,
+    radius: radius,
   });
 
   const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://${getLocalIP()}:${PORT}`;
-  res.json({ success: true, sessionId: id, sessionName: sessionName.trim(), formUrl: `${baseUrl}/s/${code}` });
+  res.json({ success: true, sessionId: id, sessionName: sessionName.trim(), courseId, formUrl: `${baseUrl}/s/${code}` });
 });
+
+
+// --- NEW COURSE & REPORT ROUTES ---
+app.get('/api/teacher/my-courses', async (req, res) => {
+  const teacherEmail = req.headers['x-teacher-email'] || req.query.teacherEmail;
+  if (!teacherEmail) return res.json({ success: false, error: 'Email required' });
+  try {
+    const assignments = await TeacherCourse.find({ teacherEmail: teacherEmail.toLowerCase().trim() });
+    const courseIds = assignments.map(a => a.courseId);
+    const courses = await Course.find({ courseId: { $in: courseIds } });
+    
+    // Map to the format the app expects
+    const formattedCourses = courses.map(c => ({
+      courseId: c.courseId,
+      courseName: c.name,
+      name: c.name,
+      semester: c.semester
+    }));
+    return res.json({ success: true, courses: formattedCourses });
+  } catch (err) {
+    return res.json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/sessions/:id/full-report', async (req, res) => {
+  const sessionId = parseInt(req.params.id);
+  try {
+    const session = await Session.findOne({ sessionId });
+    if (!session) return res.json({ success: false, error: 'Session not found' });
+    if (!session.courseId) return res.json({ success: false, error: 'Session has no course linked' });
+
+    // 1. Get all enrolled students for this course
+    const enrollments = await StudentCourse.find({ courseId: session.courseId });
+    const enrolledEmails = enrollments.map(e => e.email.toLowerCase().trim());
+
+    // 2. Get attendance records
+    const attendance = await Attendance.find({ sessionId });
+    const attendedMap = {};
+    attendance.forEach(a => { attendedMap[a.email.toLowerCase().trim()] = a; });
+
+    // 3. Get presence logs
+    const presenceLogs = await LocationEvent.find({ sessionCode: session.code, eventType: 'exit' });
+    const presenceMap = {};
+    presenceLogs.forEach(p => { 
+      // Simple logic: if they have an exit event, consider them left early (for demo purposes based on instructions)
+      presenceMap[p.email.toLowerCase().trim()] = { leftAt: p.timestamp, finalStatus: 'left_early', minutesPresent: 45 }; 
+    });
+
+    // 4. Build report
+    const report = enrolledEmails.map(email => {
+      const attended = attendedMap[email];
+      const presence = presenceMap[email];
+
+      let status;
+      if (!attended) {
+        status = 'absent';
+      } else if (presence?.finalStatus === 'left_early') {
+        status = 'left_early';
+      } else {
+        status = 'present';
+      }
+
+      return {
+        email,
+        rollNumber: attended?.rollNo || attended?.regNo || '—',
+        sessionName: session.name,
+        courseId: session.courseId,
+        date: attended?.date || '—',
+        time: attended?.time || '—',
+        status,
+        leftAt: presence?.leftAt || null,
+        minutesPresent: presence?.minutesPresent || null,
+      };
+    });
+
+    const ORDER = { present: 0, left_early: 1, absent: 2 };
+    report.sort((a, b) => ORDER[a.status] - ORDER[b.status]);
+
+    const summary = {
+      total: enrolledEmails.length,
+      present: report.filter(r => r.status === 'present').length,
+      leftEarly: report.filter(r => r.status === 'left_early').length,
+      absent: report.filter(r => r.status === 'absent').length,
+    };
+
+    return res.json({
+      success: true,
+      session: {
+        id: session.sessionId,
+        sessionName: session.name,
+        courseId: session.courseId,
+        createdAt: session.createdAt,
+        active: session.active,
+      },
+      summary,
+      report,
+    });
+  } catch (err) {
+    return res.json({ success: false, error: err.message });
+  }
+});
+
 
 app.post('/api/stop-session', async (req, res) => {
   await Session.updateMany({ active: true }, { $set: { active: false, stoppedAt: new Date() } });
@@ -1372,29 +1482,133 @@ app.get('/api/export-multi', async (req, res) => {
 
 // Export single session
 app.get('/api/export', async (req, res) => {
-  const { sessionId } = req.query;
+  const sessionId = parseInt(req.query.sessionId);
+  try {
+    const session = await Session.findOne({ sessionId });
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+    
+    // If no courseId, fallback to simple export
+    if (!session.courseId) {
+      const attendance = await Attendance.find({ sessionId }).lean();
+      const ws = XLSX.utils.json_to_sheet(attendance.map(a => ({ Email: a.email, Roll: a.rollNo, Date: a.date, Time: a.time })));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      return res.end(buf);
+    }
 
-  if (!sessionId) {
-    return res.status(400).json({ success: false, error: 'sessionId is required for export.' });
+    const enrollments = await StudentCourse.find({ courseId: session.courseId });
+    const enrolledEmails = enrollments.map(e => e.email.toLowerCase().trim());
+    const attendance = await Attendance.find({ sessionId });
+    const attendedMap = {};
+    attendance.forEach(a => { attendedMap[a.email.toLowerCase().trim()] = a; });
+    const presenceLogs = await LocationEvent.find({ sessionCode: session.code, eventType: 'exit' });
+    const presenceMap = {};
+    presenceLogs.forEach(p => { 
+      presenceMap[p.email.toLowerCase().trim()] = { leftAt: p.timestamp, finalStatus: 'left_early', minutesPresent: 45 }; 
+    });
+
+    const rows = enrolledEmails.map(email => {
+      const attended = attendedMap[email];
+      const presence = presenceMap[email];
+      let status;
+      if (!attended) status = 'absent';
+      else if (presence?.finalStatus === 'left_early') status = 'left_early';
+      else status = 'present';
+
+      return {
+        email, rollNumber: attended?.rollNo || attended?.regNo || '—',
+        date: attended?.date || '—', time: attended?.time || '—',
+        status, 
+        leftAt: presence?.leftAt ? new Date(presence.leftAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—', 
+        minutesPresent: presence?.minutesPresent ? `${presence.minutesPresent} min` : '—'
+      };
+    });
+
+    const ORDER = { present: 0, left_early: 1, absent: 2 };
+    rows.sort((a, b) => ORDER[a.status] - ORDER[b.status]);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Attendance');
+    worksheet.columns = [
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Roll Number', key: 'roll', width: 16 },
+      { header: 'Date', key: 'date', width: 14 },
+      { header: 'Check-in Time', key: 'time', width: 14 },
+      { header: 'Status', key: 'status', width: 16 },
+      { header: 'Left At', key: 'leftAt', width: 14 },
+      { header: 'Minutes Present', key: 'mins', width: 16 },
+    ];
+    
+    // Summary data
+    const presentCount = rows.filter(r => r.status === 'present').length;
+    const leftCount = rows.filter(r => r.status === 'left_early').length;
+    const absentCount = rows.filter(r => r.status === 'absent').length;
+
+    // Header styling
+    const headerRow = worksheet.getRow(3);
+    headerRow.eachCell(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      cell.font = { bold: true, color: { argb: 'FFF1F5F9' }, size: 11 };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = { bottom: { style: 'medium', color: { argb: 'FF6366F1' } } };
+    });
+    headerRow.height = 28;
+
+    const COLOURS = {
+      present: { row: 'FFF0FDF4', status: 'FF166534' },
+      left_early: { row: 'FFFFF7ED', status: 'FF92400E' },
+      absent: { row: 'FFFEF2F2', status: 'FF991B1B' },
+    };
+    const STATUS_LABELS = { present: '✅ Present', left_early: '🟡 Left Early', absent: '🔴 Absent' };
+
+    rows.forEach((r, i) => {
+      const row = worksheet.addRow({ email: r.email, roll: r.rollNumber, date: r.date, time: r.time, status: STATUS_LABELS[r.status], leftAt: r.leftAt, mins: r.minutesPresent });
+      const c = COLOURS[r.status];
+      row.eachCell(cell => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.row } };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+      });
+      const statusCell = row.getCell('status');
+      statusCell.font = { bold: true, color: { argb: c.status } };
+      statusCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      row.height = 22;
+    });
+
+    // Summary section
+    worksheet.addRow([]);
+    const summaryData = [
+      ['Total Enrolled', rows.length],
+      ['✅ Present', presentCount],
+      ['🟡 Left Early', leftCount],
+      ['🔴 Absent', absentCount],
+      ['Attendance %', `${Math.round((presentCount / rows.length) * 100)}%`]
+    ];
+    summaryData.forEach(([label, value]) => {
+      const row = worksheet.addRow([label, value]);
+      row.getCell(1).font = { bold: true, color: { argb: 'FF475569' } };
+      row.getCell(2).font = { bold: true, color: { argb: 'FF1E293B' } };
+    });
+
+    // Top title
+    const dateStr = new Date(session.createdAt).toLocaleDateString('en-IN');
+    worksheet.spliceRows(1, 0, [`Course: ${session.courseId}   |   Session: ${session.name}   |   Date: ${dateStr}`], []);
+    const titleRow = worksheet.getRow(1);
+    titleRow.getCell(1).font = { bold: true, size: 13, color: { argb: 'FF6366F1' } };
+    titleRow.height = 24;
+
+    worksheet.views = [{ state: 'frozen', ySplit: 3 }];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="attendance_${session.name.replace(/[^a-zA-Z0-9]/g, '_')}_${dateStr.replace(/\//g, '-')}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-
-  const session = await Session.findOne({ sessionId: Number(sessionId) });
-  if (!session) {
-    return res.status(404).json({ success: false, error: 'Session not found.' });
-  }
-
-  const rows = await Attendance.find({ sessionId: session.sessionId });
-  rows.sort((a, b) => (a.rollNo || '').localeCompare(b.rollNo || '', undefined, { numeric: true }));
-
-  const buffer = await getSessionXlsxBuffer(session, rows);
-  const safeFilename = getSessionFilename(session);
-
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
-  res.setHeader('Content-Length', buffer.length);
-  res.end(buffer);
 });
-
 // ==========================================
 // HTML PAGE GENERATORS
 // ==========================================
