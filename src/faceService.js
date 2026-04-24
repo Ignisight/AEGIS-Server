@@ -7,17 +7,27 @@ const FACE_URL = process.env.FACE_SERVICE_URL
 // Python service calls
 // ─────────────────────────────────────────
 async function extractEmbedding(base64Image) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+
   try {
     const res = await fetch(`${FACE_URL}/extract-embedding`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: base64Image }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
+    
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Extraction failed');
     return data;
   } catch (err) {
+    clearTimeout(timeoutId);
     console.error(`[FACE] extractEmbedding failed (URL: ${FACE_URL}):`, err.message);
+    if (err.name === 'AbortError') {
+      throw new Error('AI Service timed out. The model might be waking up—please try again in 1 minute.');
+    }
     if (err.message.includes('fetch failed')) {
       throw new Error(`AI Service unreachable at ${FACE_URL}. Check if the service is running.`);
     }
@@ -26,6 +36,9 @@ async function extractEmbedding(base64Image) {
 }
 
 async function verifyEmbedding(base64Image, faceRecord) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+
   try {
     const res = await fetch(`${FACE_URL}/verify-face`, {
       method: 'POST',
@@ -39,12 +52,19 @@ async function verifyEmbedding(base64Image, faceRecord) {
                              || '2000-01-01',
         flagged:           faceRecord.flagged || false,
       }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
+
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Verification failed');
     return data;
   } catch (err) {
+    clearTimeout(timeoutId);
     console.error(`[FACE] verifyEmbedding failed (URL: ${FACE_URL}):`, err.message);
+    if (err.name === 'AbortError') {
+      throw new Error('AI Service timed out. Please try again.');
+    }
     if (err.message.includes('fetch failed')) {
       throw new Error(`AI Service unreachable at ${FACE_URL}. Check if the service is running.`);
     }
