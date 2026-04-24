@@ -62,8 +62,8 @@ async function sendEmail(to, subject, html) {
   const GMAIL_PASS = process.env.GMAIL_PASS;
   
   if (!GMAIL_USER || !GMAIL_PASS) {
-    console.log('  ⚠️  GMAIL credentials not configured. Falling back to student provider.');
-    return sendStudentEmail(to, subject, html);
+    console.log('  ⚠️  GMAIL credentials not configured. Security email not sent.');
+    return { success: false, error: 'Security email provider not configured.' };
   }
 
   const transporter = nodemailer.createTransport({
