@@ -52,14 +52,40 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '188263362905-05e73in41h1ib970spt6q3meoidg2fte.apps.googleusercontent.com';
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'work.anuragkishan@gmail.com';
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Attendance System';
 
-// Send email via Brevo HTTP API (works on Render free tier — no SMTP needed, 300 emails/day free)
+// Send security/auth email via Mailtrap (Password Recovery & OTP Only)
 async function sendEmail(to, subject, html) {
+  const MAILTRAP_TOKEN = process.env.MAILTRAP_TOKEN;
+  if (!MAILTRAP_TOKEN) {
+    console.log('  ⚠️  MAILTRAP_TOKEN not configured. Falling back to Brevo for security.');
+    return sendStudentEmail(to, subject, html);
+  }
+  try {
+    const res = await fetch('https://send.api.mailtrap.io/api/send', {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${MAILTRAP_TOKEN}`,
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+        from: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
+        to: [{ email: to }],
+        subject,
+        html,
+      }),
+    });
+    return res.ok ? { success: true } : { success: false };
+  } catch (err) { return { success: false, error: err.message }; }
+}
+
+// Send student notifications via Brevo (Attendance Alerts Only)
+async function sendStudentEmail(to, subject, html) {
   if (!BREVO_API_KEY) {
-    console.log('  ⚠️  BREVO_API_KEY not configured. Email not sent.');
-    return { success: false, error: 'Email service not configured. Contact Admin.' };
+    console.log('  ⚠️  BREVO_API_KEY not configured.');
+    return { success: false, error: 'Email service not configured.' };
   }
   try {
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -72,21 +98,8 @@ async function sendEmail(to, subject, html) {
         htmlContent: html,
       }),
     });
-    const data = await res.json();
-    if (res.ok) {
-      await EmailLog.create({ to, subject, status: 'success' });
-      return { success: true };
-    }
-    const errorMsg = data.message || 'Email send failed.';
-    await EmailLog.create({ to, subject, status: 'failed', error: errorMsg });
-    if (res.status === 429) return { success: false, error: 'Daily email limit reached. Please try again tomorrow.' };
-    console.error('Brevo API error:', data);
-    return { success: false, error: errorMsg };
-  } catch (err) {
-    console.error('Email send error:', err.message);
-    await EmailLog.create({ to, subject, status: 'failed', error: err.message });
-    return { success: false, error: 'Email service unreachable.' };
-  }
+    return res.ok ? { success: true } : { success: false };
+  } catch (err) { return { success: false, error: err.message }; }
 }
 
 function generateSessionCode() {
@@ -2754,7 +2767,7 @@ async function runAttendanceEmailJob() {
           `;
 
         try {
-          const mailRes = await sendEmail(email, subject, html);
+          const mailRes = await sendStudentEmail(email, subject, html);
           if (mailRes.success) {
             sentInThisRun++;
             quotaRemaining--;
