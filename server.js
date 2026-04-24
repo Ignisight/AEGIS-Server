@@ -849,17 +849,23 @@ app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
       targetStudent = await Device.create({ email: emailLower, deviceId });
     }
 
-    // 3. Resize image to optimize AI processing and prevent timeouts
+    // 3. Optimized Image Processing to prevent Render OOM
     let optimizedImage = image;
-    try {
-      const jimpImg = await Jimp.read(Buffer.from(image.split(',')[1], 'base64'));
-      if (jimpImg.bitmap.width > 800) {
-        jimpImg.resize({ w: 800 });
-        const buffer = await jimpImg.getBuffer('image/jpeg', { quality: 80 });
-        optimizedImage = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+    const b64Length = image.length;
+    
+    // Only use Jimp if the image is likely too large (over 1.5MB base64)
+    if (b64Length > 1500000) {
+      try {
+        const jimpImg = await Jimp.read(Buffer.from(image.split(',')[1], 'base64'));
+        if (jimpImg.bitmap.width > 800) {
+          jimpImg.resize({ w: 800 });
+          const buffer = await jimpImg.getBuffer('image/jpeg', { quality: 75 });
+          optimizedImage = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+          console.log(`[FACE] Image resized for memory safety: ${emailLower}`);
+        }
+      } catch (resizeErr) {
+        console.warn('Image resize failed:', resizeErr.message);
       }
-    } catch (resizeErr) {
-      console.warn('Image resize failed, using original:', resizeErr.message);
     }
 
     // 4. Extract embedding via Python service
@@ -921,17 +927,22 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
       return res.json({ success: false, needsRegistration: true });
     }
 
-    // 4. Resize image to optimize AI processing and prevent timeouts
+    // 4. Optimized Image Processing to prevent Render OOM
     let optimizedImage = image;
-    try {
-      const jimpImg = await Jimp.read(Buffer.from(image.split(',')[1], 'base64'));
-      if (jimpImg.bitmap.width > 800) {
-        jimpImg.resize({ w: 800 });
-        const buffer = await jimpImg.getBuffer('image/jpeg', { quality: 80 });
-        optimizedImage = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+    const b64Length = image.length;
+
+    if (b64Length > 1500000) {
+      try {
+        const jimpImg = await Jimp.read(Buffer.from(image.split(',')[1], 'base64'));
+        if (jimpImg.bitmap.width > 800) {
+          jimpImg.resize({ w: 800 });
+          const buffer = await jimpImg.getBuffer('image/jpeg', { quality: 75 });
+          optimizedImage = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+          console.log(`[FACE] Verification image resized for memory safety: ${emailLower}`);
+        }
+      } catch (resizeErr) {
+        console.warn('Image resize failed:', resizeErr.message);
       }
-    } catch (resizeErr) {
-      console.warn('Image resize failed, using original:', resizeErr.message);
     }
 
     // 5. Verify via Python
