@@ -79,9 +79,16 @@ async function sendEmail(to, subject, html) {
     
     if (res.ok) return { success: true };
     
-    const errorData = await res.json();
-    console.error('[EMAIL_OCTOPUS] API Error:', JSON.stringify(errorData));
-    return { success: false, error: errorData.message || 'Email provider rejected request' };
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const errorData = await res.json();
+      console.error('[EMAIL_OCTOPUS] API Error:', JSON.stringify(errorData));
+      return { success: false, error: errorData.message || 'Email provider rejected request' };
+    } else {
+      const errorText = await res.text();
+      console.error('[EMAIL_OCTOPUS] Non-JSON Error Response:', errorText.substring(0, 500));
+      return { success: false, error: 'Email provider returned an HTML error. Check your API endpoint/key.' };
+    }
   } catch (err) { 
     console.error('[EMAIL_OCTOPUS] Fetch Error:', err.message);
     return { success: false, error: err.message }; 
