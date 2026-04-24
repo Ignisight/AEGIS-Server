@@ -76,8 +76,16 @@ async function sendEmail(to, subject, html) {
         html_message: html,
       }),
     });
-    return res.ok ? { success: true } : { success: false };
-  } catch (err) { return { success: false, error: err.message }; }
+    
+    if (res.ok) return { success: true };
+    
+    const errorData = await res.json();
+    console.error('[EMAIL_OCTOPUS] API Error:', JSON.stringify(errorData));
+    return { success: false, error: errorData.message || 'Email provider rejected request' };
+  } catch (err) { 
+    console.error('[EMAIL_OCTOPUS] Fetch Error:', err.message);
+    return { success: false, error: err.message }; 
+  }
 }
 
 // Send student notifications via Brevo (Attendance Alerts Only)
