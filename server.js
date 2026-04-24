@@ -60,30 +60,32 @@ const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Attendance System';
 async function sendEmail(to, subject, html) {
   const API_KEY = process.env.EMAIL_OCTOPUS_API_KEY;
   if (!API_KEY) {
-    console.log('  ⚠️  EMAIL_OCTOPUS_API_KEY not configured. Falling back to student provider for security.');
-    return sendStudentEmail(to, subject, html);
+    console.log('  ⚠️  EMAIL_OCTOPUS_API_KEY not configured.');
+    return { success: false, error: 'Email service not configured.' };
   }
   try {
-    const res = await fetch(`https://emailoctopus.com/api/1.1/emails/transactional?api_key=${API_KEY}`, {
+    const params = new URLSearchParams();
+    params.append('api_key', API_KEY);
+    params.append('subject', subject);
+    params.append('from_name', EMAIL_FROM_NAME);
+    params.append('from_address', EMAIL_FROM);
+    params.append('to', to);
+    params.append('html_message', html);
+
+    const res = await fetch('https://emailoctopus.com/api/1.1/emails/transactional', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subject: subject,
-        from_name: EMAIL_FROM_NAME,
-        from_address: EMAIL_FROM,
-        to: to,
-        html_message: html,
-      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
     });
     
     if (res.ok) return { success: true };
     
-    // If Email Octopus fails (e.g. Transactional not enabled), fallback to Brevo
-    console.log(`  ⚠️  Email Octopus failed (${res.status}). Falling back to Brevo...`);
-    return sendStudentEmail(to, subject, html);
+    const errorText = await res.text();
+    console.error('[EMAIL_OCTOPUS] Error:', errorText.substring(0, 500));
+    return { success: false, error: 'Email Octopus rejected the request. Check if Transactional is enabled.' };
   } catch (err) { 
-    console.log('  ⚠️  Email Octopus unreachable. Falling back to Brevo...');
-    return sendStudentEmail(to, subject, html); 
+    console.error('[EMAIL_OCTOPUS] Network Error:', err.message);
+    return { success: false, error: err.message }; 
   }
 }
 
