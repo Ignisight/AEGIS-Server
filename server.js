@@ -783,13 +783,62 @@ app.post('/api/student/login', async (req, res) => {
         error: `This phone is already bound to ${existingDevice.email}. Using multiple emails on one phone is NOT allowed.`,
       });
     }
-    // Same device + same email = returning user
-    return res.json({ success: true, message: 'Welcome back!' });
+  // Same device + same email = returning user
+    return res.json({ 
+      success: true, 
+      message: 'Welcome back!', 
+      faceVerificationEnabled: existingDevice.faceVerificationEnabled || false,
+      name: existingDevice.name || emailLower.split('@')[0],
+      displayName: existingDevice.displayName || emailLower.split('@')[0]
+    });
   }
 
   // New device — register it (email can have multiple devices)
-  await Device.create({ email: emailLower, deviceId });
-  res.json({ success: true, message: 'Device securely registered!', name: emailLower.split('@')[0], displayName: emailLower.split('@')[0] });
+  const newDevice = await Device.create({ email: emailLower, deviceId });
+  res.json({ 
+    success: true, 
+    message: 'Device securely registered!', 
+    faceVerificationEnabled: false,
+    name: emailLower.split('@')[0], 
+    displayName: emailLower.split('@')[0] 
+  });
+});
+
+// GET /api/student/face-config
+app.get('/api/student/face-config', verifyAppSecret, async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.json({ success: false, error: 'Email is required' });
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    const faceRecord = await getFaceEmbedding(emailLower);
+    if (!faceRecord) return res.json({ success: false, error: 'No face record found' });
+    
+    // We return the active_embedding as the descriptor for the app
+    res.json({ success: true, descriptor: faceRecord.active_embedding });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/student/sync-face-descriptor
+app.post('/api/student/sync-face-descriptor', verifyAppSecret, async (req, res) => {
+  const { email, descriptor } = req.body;
+  if (!email || !descriptor) return res.json({ success: false, error: 'Email and descriptor are required' });
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    // Store in Supabase using the existing service
+    // We use confidence 1.0 since it's the golden record from setup
+    await storeFaceEmbedding(emailLower, descriptor, 1.0);
+    
+    // Update MongoDB status
+    await Device.updateMany({ email: emailLower }, { faceVerificationEnabled: true, faceRegisteredAt: new Date() });
+    
+    res.json({ success: true, message: 'Face descriptor synced to cloud' });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 app.post('/api/student/decode-qr', upload.single('qrimage'), async (req, res) => {
