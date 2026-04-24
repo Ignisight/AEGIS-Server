@@ -10,11 +10,11 @@ import os
 # ─────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────
-MODEL_NAME = "Facenet512"
+MODEL_NAME = "Facenet"   # Lighter version (128d) for 512MB RAM compatibility
 DETECTOR   = "opencv"
-THRESHOLD  = 0.68
+THRESHOLD  = 0.40        # Adjusted threshold for standard Facenet
 MIN_CONFIDENCE = 0.85
-LEARNING_RATE = 0.1  # How fast the active template evolves (0.1 = 10% new, 90% old)
+LEARNING_RATE = 0.1
 
 # ─────────────────────────────────────────
 # PRELOAD MODEL ON STARTUP
