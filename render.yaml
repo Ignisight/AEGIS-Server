@@ -27,20 +27,5 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
-      # Automatically link to the AI service
       - key: FACE_SERVICE_URL
-        fromService:
-          type: web
-          name: aegis-ai
-          property: url
-
-  # 2. AI Face Verification Service (Python)
-  - type: web
-    name: aegis-ai
-    runtime: python
-    plan: free
-    buildCommand: pip install -r face-service/requirements.txt
-    startCommand: cd face-service && uvicorn main:app --host 0.0.0.0 --port $PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.10.0
+        sync: false
