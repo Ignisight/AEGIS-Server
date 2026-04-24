@@ -56,37 +56,12 @@ const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'work.anuragkishan@gmail.com';
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Attendance System';
 
-// Send security/auth email via Mailtrap (Password Recovery & OTP Only)
+// Send security/auth email via Email Octopus (Password Recovery & OTP Only)
 async function sendEmail(to, subject, html) {
-  const MAILTRAP_TOKEN = process.env.MAILTRAP_TOKEN;
-  if (!MAILTRAP_TOKEN) {
-    console.log('  ⚠️  MAILTRAP_TOKEN not configured. Falling back to Brevo for security.');
-    return sendStudentEmail(to, subject, html);
-  }
-  try {
-    const res = await fetch('https://send.api.mailtrap.io/api/send', {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${MAILTRAP_TOKEN}`,
-        'Content-Type': 'application/json' 
-      },
-      body: JSON.stringify({
-        from: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
-        to: [{ email: to }],
-        subject,
-        html,
-      }),
-    });
-    return res.ok ? { success: true } : { success: false };
-  } catch (err) { return { success: false, error: err.message }; }
-}
-
-// Send student notifications via Email Octopus (Attendance Alerts Only)
-async function sendStudentEmail(to, subject, html) {
   const API_KEY = process.env.EMAIL_OCTOPUS_API_KEY;
   if (!API_KEY) {
-    console.log('  ⚠️  EMAIL_OCTOPUS_API_KEY not configured. Falling back to security provider.');
-    return sendEmail(to, subject, html);
+    console.log('  ⚠️  EMAIL_OCTOPUS_API_KEY not configured. Falling back to student provider for security.');
+    return sendStudentEmail(to, subject, html);
   }
   try {
     const res = await fetch('https://emailoctopus.com/api/1.1/emails/transactional', {
@@ -99,6 +74,27 @@ async function sendStudentEmail(to, subject, html) {
         from_address: EMAIL_FROM,
         to: to,
         html_message: html,
+      }),
+    });
+    return res.ok ? { success: true } : { success: false };
+  } catch (err) { return { success: false, error: err.message }; }
+}
+
+// Send student notifications via Brevo (Attendance Alerts Only)
+async function sendStudentEmail(to, subject, html) {
+  if (!BREVO_API_KEY) {
+    console.log('  ⚠️  BREVO_API_KEY not configured.');
+    return { success: false, error: 'Email service not configured.' };
+  }
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
       }),
     });
     return res.ok ? { success: true } : { success: false };
