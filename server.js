@@ -1458,6 +1458,7 @@ app.get('/api/history', async (req, res) => {
     createdAt: s.createdAt,
     stoppedAt: s.stoppedAt || null,
     active: s.active,
+    durationMs: s.durationMs || (60 * 60 * 1000), // Default to 1 hr if not set
     responseCount: await Attendance.countDocuments({ sessionId: s.sessionId }),
   })));
 
