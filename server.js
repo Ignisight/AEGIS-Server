@@ -849,8 +849,21 @@ app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
       targetStudent = await Device.create({ email: emailLower, deviceId });
     }
 
-    // 3. Extract embedding via Python service
-    const faceData = await extractEmbedding(image);
+    // 3. Resize image to optimize AI processing and prevent timeouts
+    let optimizedImage = image;
+    try {
+      const jimpImg = await Jimp.read(Buffer.from(image.split(',')[1], 'base64'));
+      if (jimpImg.bitmap.width > 800) {
+        jimpImg.resize({ w: 800 });
+        const buffer = await jimpImg.getBuffer('image/jpeg', { quality: 80 });
+        optimizedImage = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+      }
+    } catch (resizeErr) {
+      console.warn('Image resize failed, using original:', resizeErr.message);
+    }
+
+    // 4. Extract embedding via Python service
+    const faceData = await extractEmbedding(optimizedImage);
 
     if (faceData.face_confidence < 0.85) {
       return res.json({
@@ -908,8 +921,21 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
       return res.json({ success: false, needsRegistration: true });
     }
 
-    // 4. Verify via Python
-    const result = await verifyEmbedding(image, faceRecord);
+    // 4. Resize image to optimize AI processing and prevent timeouts
+    let optimizedImage = image;
+    try {
+      const jimpImg = await Jimp.read(Buffer.from(image.split(',')[1], 'base64'));
+      if (jimpImg.bitmap.width > 800) {
+        jimpImg.resize({ w: 800 });
+        const buffer = await jimpImg.getBuffer('image/jpeg', { quality: 80 });
+        optimizedImage = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+      }
+    } catch (resizeErr) {
+      console.warn('Image resize failed, using original:', resizeErr.message);
+    }
+
+    // 5. Verify via Python
+    const result = await verifyEmbedding(optimizedImage, faceRecord);
 
     // 5. Handle flagging
     if (result.should_flag) {

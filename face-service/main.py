@@ -130,27 +130,47 @@ async def extract_embedding(req: FaceRequest):
 async def verify_face(req: VerifyRequest):
     """
     Called on every attendance scan.
-    Compares new photo against stored embedding.
+    Compares new photo against BOTH golden and active embeddings.
     """
     img = decode_image(req.image)
     new_embedding, _ = get_embedding(img)
 
-    # Cosine similarity calculation
-    a = np.array(new_embedding)
-    b = np.array(req.stored_embedding)
-    
-    # Safety check for shape
-    if a.shape != b.shape:
-        raise HTTPException(400, f"Embedding shape mismatch: {a.shape} vs {b.shape}")
+    # Convert all to numpy arrays
+    new_v    = np.array(new_embedding)
+    golden_v = np.array(req.golden_embedding)
+    active_v = np.array(req.active_embedding)
 
-    similarity = float(
-        np.dot(a, b) / 
-        (np.linalg.norm(a) * np.linalg.norm(b))
-    )
+    # 1. Similarity with Golden (original identity)
+    sim_golden = cosine_similarity(new_v, golden_v)
+    
+    # 2. Similarity with Active (latest learned template)
+    sim_active = cosine_similarity(new_v, active_v)
+
+    # Calculate drift: how much has the current face moved away from the original golden template?
+    # A high drift means the 'active' template is becoming too different from the original person.
+    drift = round(cosine_distance(golden_v, active_v), 4)
+
+    # Match logic: must match at least one template above threshold
+    # But we prioritize active_v for the latest appearance.
+    is_match = (sim_active >= THRESHOLD) or (sim_golden >= THRESHOLD)
+
+    # Security flagging:
+    # If it matches the 'active' template but similarity with 'golden' is very low, 
+    # it might be a slow 'morph' or proxy swap.
+    should_flag = False
+    flag_reason = None
+    if is_match and sim_golden < (THRESHOLD - 0.15):
+        should_flag = True
+        flag_reason = "Significant template drift detected. Requires manual review."
 
     return {
         "success": True,
-        "match": similarity >= THRESHOLD,
-        "similarity": round(similarity, 4),
+        "match": is_match,
+        "similarity": round(max(sim_active, sim_golden), 4),
+        "score_active": round(sim_active, 4),
+        "score_golden": round(sim_golden, 4),
+        "drift": drift,
+        "should_flag": should_flag,
+        "flag_reason": flag_reason,
         "threshold": THRESHOLD,
     }
