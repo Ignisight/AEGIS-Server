@@ -10,32 +10,21 @@ import os
 # ─────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────
-MODEL_NAME = "Facenet"   # Lighter version (128d) for 512MB RAM compatibility
+MODEL_NAME = "OpenFace"  # The most lightweight model available
 DETECTOR   = "opencv"
-THRESHOLD  = 0.40        # Adjusted threshold for standard Facenet
+THRESHOLD  = 0.10        # Adjusted threshold for OpenFace (standard is ~0.10-0.40)
 MIN_CONFIDENCE = 0.85
 LEARNING_RATE = 0.1
 
 # ─────────────────────────────────────────
-# PRELOAD MODEL ON STARTUP
-# Saves 800ms on first real request
+# LIFESPAN (DISABLED PRELOADING FOR RAM)
 # ─────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("⏳ Preloading FaceNet512 model...")
-    # Create a small dummy image for initial loading
-    dummy = np.zeros((160, 160, 3), dtype=np.uint8)
-    try:
-        DeepFace.represent(
-            img_path=dummy,
-            model_name=MODEL_NAME,
-            detector_backend=DETECTOR,
-            enforce_detection=False,
-        )
-    except Exception:
-        pass  # expected on blank image — model is loaded
-    print("✅ Model ready.")
+    print("🚀 AI Service starting (Lazy Loading enabled for RAM safety)...")
+    # We skip preloading here to stay under 512MB during startup
     yield
+    print("👋 AI Service shutting down.")
 
 app = FastAPI(lifespan=lifespan)
 
