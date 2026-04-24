@@ -1225,6 +1225,10 @@ app.post('/api/start-session', async (req, res) => {
   if (!courseId)
     return res.json({ success: false, error: 'Please select a course' });
 
+  if (durationMins && parseInt(durationMins) < 10) {
+    return res.json({ success: false, error: 'Session duration must be at least 10 minutes' });
+  }
+
   const durationMs = durationMins ? parseInt(durationMins) * 60 * 1000 : null;
   const joinWindowMs = req.body.joinWindowMins ? parseInt(req.body.joinWindowMins) * 60 * 1000 : 10 * 60 * 1000;
   const radius = parseInt(radiusMeters) || 80;
