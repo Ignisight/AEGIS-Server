@@ -937,7 +937,22 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
     // 5. Verify via Python
     const result = await verifyEmbedding(optimizedImage, faceRecord);
 
-    // 5. Handle flagging
+    // 6. Handle adaptive template update (AI-driven evolution)
+    if (result.success && result.verified && result.updated_active && !result.should_flag) {
+      // Check if we already updated today to avoid over-fitting
+      const today = new Date().toISOString().split('T')[0];
+      if (faceRecord.last_update_date !== today) {
+        await updateActiveTemplate(
+          emailLower, 
+          result.updated_active, 
+          result.drift, 
+          faceRecord.update_count
+        );
+        console.log(`[FACE] Template evolved for: ${emailLower} (drift: ${result.drift})`);
+      }
+    }
+
+    // 7. Handle flagging
     if (result.should_flag) {
       await flagAccount(emailLower, result.flag_reason);
 
@@ -962,7 +977,7 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
       }
     }
 
-    // 6. Failed verification
+    // 8. Failed verification
     if (!result.match) {
       await SecurityEvent.create({
         email: emailLower,

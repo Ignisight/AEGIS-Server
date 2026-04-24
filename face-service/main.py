@@ -14,6 +14,7 @@ MODEL_NAME = "Facenet512"
 DETECTOR   = "opencv"
 THRESHOLD  = 0.68
 MIN_CONFIDENCE = 0.85
+LEARNING_RATE = 0.1  # How fast the active template evolves (0.1 = 10% new, 90% old)
 
 # ─────────────────────────────────────────
 # PRELOAD MODEL ON STARTUP
@@ -147,11 +148,9 @@ async def verify_face(req: VerifyRequest):
     sim_active = cosine_similarity(new_v, active_v)
 
     # Calculate drift: how much has the current face moved away from the original golden template?
-    # A high drift means the 'active' template is becoming too different from the original person.
     drift = round(cosine_distance(golden_v, active_v), 4)
 
     # Match logic: must match at least one template above threshold
-    # But we prioritize active_v for the latest appearance.
     is_match = (sim_active >= THRESHOLD) or (sim_golden >= THRESHOLD)
 
     # Security flagging:
@@ -163,6 +162,14 @@ async def verify_face(req: VerifyRequest):
         should_flag = True
         flag_reason = "Significant template drift detected. Requires manual review."
 
+    # Adaptive Update:
+    # If it's a very high confidence match, we can blend it into the active template
+    # to account for natural aging, hair changes, etc.
+    updated_active = active_v.tolist()
+    if is_match and sim_active > 0.85 and not should_flag:
+        new_active_v = blend_embeddings(active_v, new_v, rate=LEARNING_RATE)
+        updated_active = new_active_v.tolist()
+
     return {
         "success": True,
         "match": is_match,
@@ -173,4 +180,5 @@ async def verify_face(req: VerifyRequest):
         "should_flag": should_flag,
         "flag_reason": flag_reason,
         "threshold": THRESHOLD,
+        "updated_active": updated_active
     }
