@@ -460,7 +460,8 @@ app.use(cors({
     callback(new Error('CORS: Origin not allowed'));
   },
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.urlencoded({ extended: true }));
 
 // Lightweight keep-alive endpoint — no auth, no DB required
