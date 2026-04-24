@@ -26,3 +26,5 @@ services:
         sync: false
       - key: LEGACY_SECRET_EXPIRES_AT
         sync: false
+      - key: FACE_SERVICE_URL
+        sync: false          # URL of your Python DeepFace service
