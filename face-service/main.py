@@ -122,7 +122,7 @@ async def extract_embedding(req: FaceRequest):
     embedding, confidence = get_embedding(img)
     return {
         "success": True,
-        "embedding": embedding,
+        "embedding": embedding.tolist(),
         "face_confidence": confidence,
     }
 
