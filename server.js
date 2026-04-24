@@ -64,11 +64,10 @@ async function sendEmail(to, subject, html) {
     return sendStudentEmail(to, subject, html);
   }
   try {
-    const res = await fetch('https://emailoctopus.com/api/1.1/emails/transactional', {
+    const res = await fetch(`https://emailoctopus.com/api/1.1/emails/transactional?api_key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_key: API_KEY,
         subject: subject,
         from_name: EMAIL_FROM_NAME,
         from_address: EMAIL_FROM,
