@@ -863,9 +863,9 @@ app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
     await storeFaceEmbedding(emailLower, faceData.embedding, faceData.face_confidence);
 
     // 5. Update MongoDB flag — no embedding stored here
-    student.faceVerificationEnabled = true;
-    student.faceRegisteredAt = new Date();
-    await student.save();
+    targetStudent.faceVerificationEnabled = true;
+    targetStudent.faceRegisteredAt = new Date();
+    await targetStudent.save();
 
     console.log(`[FACE] Registered face for: ${emailLower}`);
     return res.json({ success: true, message: 'Face registered successfully' });
