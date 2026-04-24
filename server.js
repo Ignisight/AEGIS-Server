@@ -56,36 +56,32 @@ const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'work.anuragkishan@gmail.com';
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Attendance System';
 
-// Send security/auth email via Email Octopus (Password Recovery & OTP Only)
+// Send security/auth email via Gmail SMTP (Password Recovery & OTP Only)
 async function sendEmail(to, subject, html) {
-  const API_KEY = process.env.EMAIL_OCTOPUS_API_KEY;
-  if (!API_KEY) {
-    console.log('  ⚠️  EMAIL_OCTOPUS_API_KEY not configured.');
-    return { success: false, error: 'Email service not configured.' };
+  const GMAIL_USER = process.env.GMAIL_USER;
+  const GMAIL_PASS = process.env.GMAIL_PASS;
+  
+  if (!GMAIL_USER || !GMAIL_PASS) {
+    console.log('  ⚠️  GMAIL credentials not configured. Falling back to student provider.');
+    return sendStudentEmail(to, subject, html);
   }
-  try {
-    const params = new URLSearchParams();
-    params.append('api_key', API_KEY);
-    params.append('subject', subject);
-    params.append('from_name', EMAIL_FROM_NAME);
-    params.append('from_address', EMAIL_FROM);
-    params.append('to', to);
-    params.append('html_message', html);
 
-    const res = await fetch('https://emailoctopus.com/api/1.1/emails/transactional', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString(),
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: GMAIL_USER, pass: GMAIL_PASS }
+  });
+
+  try {
+    await transporter.sendMail({
+      from: `"${EMAIL_FROM_NAME}" <${GMAIL_USER}>`,
+      to,
+      subject,
+      html
     });
-    
-    if (res.ok) return { success: true };
-    
-    const errorText = await res.text();
-    console.error('[EMAIL_OCTOPUS] Error:', errorText.substring(0, 500));
-    return { success: false, error: 'Email Octopus rejected the request. Check if Transactional is enabled.' };
-  } catch (err) { 
-    console.error('[EMAIL_OCTOPUS] Network Error:', err.message);
-    return { success: false, error: err.message }; 
+    return { success: true };
+  } catch (err) {
+    console.error('[GMAIL] Error:', err.message);
+    return { success: false, error: err.message };
   }
 }
 
