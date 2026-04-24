@@ -7,33 +7,49 @@ const FACE_URL = process.env.FACE_SERVICE_URL
 // Python service calls
 // ─────────────────────────────────────────
 async function extractEmbedding(base64Image) {
-  const res = await fetch(`${FACE_URL}/extract-embedding`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: base64Image }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || 'Extraction failed');
-  return data;
+  try {
+    const res = await fetch(`${FACE_URL}/extract-embedding`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Extraction failed');
+    return data;
+  } catch (err) {
+    console.error(`[FACE] extractEmbedding failed (URL: ${FACE_URL}):`, err.message);
+    if (err.message.includes('fetch failed')) {
+      throw new Error(`AI Service unreachable at ${FACE_URL}. Check if the service is running.`);
+    }
+    throw err;
+  }
 }
 
 async function verifyEmbedding(base64Image, faceRecord) {
-  const res = await fetch(`${FACE_URL}/verify-face`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      image: base64Image,
-      golden_embedding:  faceRecord.golden_embedding,
-      active_embedding:  faceRecord.active_embedding,
-      update_count:      faceRecord.update_count,
-      last_update_date:  faceRecord.last_update_date 
-                           || '2000-01-01',
-      flagged:           faceRecord.flagged || false,
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || 'Verification failed');
-  return data;
+  try {
+    const res = await fetch(`${FACE_URL}/verify-face`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: base64Image,
+        golden_embedding:  faceRecord.golden_embedding,
+        active_embedding:  faceRecord.active_embedding,
+        update_count:      faceRecord.update_count,
+        last_update_date:  faceRecord.last_update_date 
+                             || '2000-01-01',
+        flagged:           faceRecord.flagged || false,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Verification failed');
+    return data;
+  } catch (err) {
+    console.error(`[FACE] verifyEmbedding failed (URL: ${FACE_URL}):`, err.message);
+    if (err.message.includes('fetch failed')) {
+      throw new Error(`AI Service unreachable at ${FACE_URL}. Check if the service is running.`);
+    }
+    throw err;
+  }
 }
 
 // ─────────────────────────────────────────
