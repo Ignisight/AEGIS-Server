@@ -1157,14 +1157,44 @@ app.get('/api/student/courses', async (req, res) => {
     // For each course, count sessions and attendance
     const result = await Promise.all(courseIds.map(async (courseId) => {
       const courseInfo = courseMap[courseId] || { name: courseId, semester: '', department: '' };
-      // Sessions for this course: name starts with courseId (format "CS301 — Subject Name")
-      const sessions = await Session.find({ name: new RegExp(`^${courseId}\\s*[—-]`, 'i'), stoppedAt: { $ne: null } });
+      
+      const sessions = await Session.find({
+        $or: [
+          { courseId: courseId },
+          { name: new RegExp(`^${courseId}\\s*[—-]`, 'i') }
+        ],
+        stoppedAt: { $ne: null }
+      });
+      
       const totalSessions = sessions.length;
       let attended = 0;
+      
       if (totalSessions > 0) {
-        const sessionIds = sessions.map(s => s.sessionId);
-        attended = await Attendance.countDocuments({ email: emailLower, sessionId: { $in: sessionIds } });
+        for (const s of sessions) {
+          const att = await Attendance.findOne({ email: emailLower, sessionId: s.sessionId });
+          if (!att) continue;
+          
+          const sessionDurationMins = s.durationMs ? (s.durationMs / 60000) : 60;
+          const joinTime = att.submittedAt.getTime();
+          const sessionEndTime = s.stoppedAt.getTime(); // Already filtered for stoppedAt !== null
+          
+          const exitEvent = await LocationEvent.findOne({ 
+            email: emailLower, 
+            sessionCode: s.code, 
+            eventType: 'exit', 
+            timestamp: { $gt: att.submittedAt } 
+          }).sort({ timestamp: 1 });
+          
+          const effectiveEndTime = exitEvent ? exitEvent.timestamp.getTime() : sessionEndTime;
+          const minutesPresent = Math.max(0, Math.round((effectiveEndTime - joinTime) / 60000));
+          const percentage = Math.min(100, Math.round((minutesPresent / sessionDurationMins) * 100));
+          
+          if (percentage >= 50) { // Present or Partial counts as attended
+             attended++;
+          }
+        }
       }
+      
       const percentage = totalSessions > 0 ? Math.round((attended / totalSessions) * 100) : null;
       return {
         courseId,
