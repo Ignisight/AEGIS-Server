@@ -1,4 +1,5 @@
 services:
+  # 1. Main Application Gateway (Node.js)
   - type: web
     name: aegis-server
     runtime: node
@@ -9,9 +10,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: MONGO_URI
-        sync: false          # Set manually in Render dashboard
+        sync: false
       - key: APP_SECRET_KEY
-        sync: false          # Must match mobile app's APP_SECRET_KEY
+        sync: false
       - key: ADMIN_USER
         sync: false
       - key: ADMIN_PASSWORD
@@ -22,9 +23,24 @@ services:
         value: work.anuragkishan@gmail.com
       - key: EMAIL_FROM_NAME
         value: A.E.G.I.S Attendance
-      - key: LEGACY_APP_SECRET
+      - key: SUPABASE_URL
         sync: false
-      - key: LEGACY_SECRET_EXPIRES_AT
+      - key: SUPABASE_SERVICE_KEY
         sync: false
+      # Automatically link to the AI service
       - key: FACE_SERVICE_URL
-        sync: false          # URL of your Python DeepFace service
+        fromService:
+          type: web
+          name: aegis-ai
+          property: url
+
+  # 2. AI Face Verification Service (Python)
+  - type: web
+    name: aegis-ai
+    runtime: python
+    plan: free
+    buildCommand: pip install -r face-service/requirements.txt
+    startCommand: cd face-service && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
