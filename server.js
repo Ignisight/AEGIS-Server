@@ -224,7 +224,8 @@ const SessionSchema = new mongoose.Schema({
   lon: { type: Number, default: null },
   courseId: { type: String, default: null },
   radius: { type: Number, default: 80 },  // geofence radius in metres
-  durationMs: { type: Number, default: null },  // null = use 10-min auto-close default
+  durationMs: { type: Number, default: null },  // Total class duration
+  joinWindowMs: { type: Number, default: 10 * 60 * 1000 }, // QR validity window (default 10 mins)
 });
 // TTL: auto-delete sessions older than 6 months
 SessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 183 * 24 * 60 * 60 });
@@ -1050,10 +1051,15 @@ app.post('/api/student/submit', async (req, res) => {
   if (!activeSession) return res.json({ success: false, error: 'Invalid or expired session QR.' });
   if (activeSession.stoppedAt) return res.json({ success: false, error: 'This session has ended.' });
 
-  // Check session expiry (session.sessionId is Date.now() timestamp at creation)
-  const durationLimit = activeSession.durationMs || 10 * 60 * 1000;
-  if (Date.now() - activeSession.sessionId > durationLimit)
-    return res.json({ success: false, error: 'Session expired (duration limit exceeded).' });
+  // Check QR Join Window (session.sessionId is creation timestamp)
+  const joinLimit = activeSession.joinWindowMs || 10 * 60 * 1000;
+  if (Date.now() - activeSession.sessionId > joinLimit)
+    return res.json({ success: false, error: 'Join window closed (QR expired).' });
+
+  // Verify total session duration as a safety check
+  const totalLimit = activeSession.durationMs || 60 * 60 * 1000;
+  if (Date.now() - activeSession.sessionId > totalLimit)
+    return res.json({ success: false, error: 'Session has ended.' });
 
   // Domain restriction
   if (activeSession.teacherEmail) {
@@ -1190,6 +1196,7 @@ app.post('/api/start-session', async (req, res) => {
     return res.json({ success: false, error: 'Please select a course' });
 
   const durationMs = durationMins ? parseInt(durationMins) * 60 * 1000 : null;
+  const joinWindowMs = req.body.joinWindowMins ? parseInt(req.body.joinWindowMins) * 60 * 1000 : 10 * 60 * 1000;
   const radius = parseInt(radiusMeters) || 80;
 
   const id = Date.now();
@@ -1206,6 +1213,7 @@ app.post('/api/start-session', async (req, res) => {
     lat: lat || null,
     lon: lon || null,
     durationMs: durationMs,
+    joinWindowMs: joinWindowMs,
     radius: radius,
   });
 
@@ -1252,49 +1260,67 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
     const attendedMap = {};
     attendance.forEach(a => { attendedMap[a.email.toLowerCase().trim()] = a; });
 
-    // 3. Get presence logs
-    const presenceLogs = await LocationEvent.find({ sessionCode: session.code, eventType: 'exit' });
-    const presenceMap = {};
-    presenceLogs.forEach(p => { 
-      // Simple logic: if they have an exit event, consider them left early (for demo purposes based on instructions)
-      presenceMap[p.email.toLowerCase().trim()] = { leftAt: p.timestamp, finalStatus: 'left_early', minutesPresent: 45 }; 
-    });
+    // 3. Get all presence logs for this session
+    const presenceLogs = await LocationEvent.find({ sessionCode: session.code }).sort({ timestamp: 1 });
+    
+    // 4. Calculate total session duration in minutes
+    const sessionDurationMins = session.durationMs ? (session.durationMs / 60000) : 60;
+    const sessionStartTime = session.createdAt.getTime();
+    const sessionEndTime = session.stoppedAt ? session.stoppedAt.getTime() : (sessionStartTime + (session.durationMs || 3600000));
 
-    // 4. Build report
+    // 5. Build report
     const report = enrolledEmails.map(email => {
       const attended = attendedMap[email];
-      const presence = presenceMap[email];
+      
+      if (!attended) {
+        return {
+          email,
+          rollNumber: '—',
+          sessionName: session.name,
+          courseId: session.courseId,
+          date: '—',
+          time: '—',
+          status: 'Absent',
+          minutesPresent: 0,
+          percentage: 0
+        };
+      }
+
+      // Calculate presence: from submission time until exit event or session end
+      const joinTime = attended.submittedAt.getTime();
+      const exitEvent = presenceLogs.find(p => p.email === email && p.eventType === 'exit' && p.timestamp.getTime() > joinTime);
+      const effectiveEndTime = exitEvent ? exitEvent.timestamp.getTime() : Math.min(Date.now(), sessionEndTime);
+      
+      const minutesPresent = Math.max(0, Math.round((effectiveEndTime - joinTime) / 60000));
+      const percentage = Math.min(100, Math.round((minutesPresent / sessionDurationMins) * 100));
 
       let status;
-      if (!attended) {
-        status = 'absent';
-      } else if (presence?.finalStatus === 'left_early') {
-        status = 'left_early';
-      } else {
-        status = 'present';
-      }
+      if (percentage >= 85) status = 'Present';
+      else if (percentage >= 50) status = 'Partial Attendance';
+      else status = 'Absent';
 
       return {
         email,
-        rollNumber: attended?.rollNo || attended?.regNo || '—',
+        rollNumber: attended.rollNo || attended.regNo || '—',
         sessionName: session.name,
         courseId: session.courseId,
-        date: attended?.date || '—',
-        time: attended?.time || '—',
+        date: attended.date || '—',
+        time: attended.time || '—',
         status,
-        leftAt: presence?.leftAt || null,
-        minutesPresent: presence?.minutesPresent || null,
+        minutesPresent,
+        percentage,
+        leftAt: exitEvent ? exitEvent.timestamp : null,
       };
     });
 
-    const ORDER = { present: 0, left_early: 1, absent: 2 };
+    const ORDER = { 'Present': 0, 'Partial Attendance': 1, 'Absent': 2 };
     report.sort((a, b) => ORDER[a.status] - ORDER[b.status]);
 
     const summary = {
       total: enrolledEmails.length,
-      present: report.filter(r => r.status === 'present').length,
-      leftEarly: report.filter(r => r.status === 'left_early').length,
-      absent: report.filter(r => r.status === 'absent').length,
+      present: report.filter(r => r.status === 'Present').length,
+      partial: report.filter(r => r.status === 'Partial Attendance').length,
+      absent: report.filter(r => r.status === 'Absent').length,
     };
 
     return res.json({
@@ -1305,6 +1331,8 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
         courseId: session.courseId,
         createdAt: session.createdAt,
         active: session.active,
+        joinWindowMs: session.joinWindowMs,
+        durationMs: session.durationMs
       },
       summary,
       report,
