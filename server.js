@@ -58,23 +58,23 @@ const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Attendance System';
 
 // Send security/auth email via Gmail SMTP (Password Recovery & OTP Only)
 async function sendEmail(to, subject, html) {
-  const GMAIL_USER = process.env.GMAIL_USER;
-  const GMAIL_PASS = process.env.GMAIL_PASS;
+  const EMAIL_USER = process.env.EMAIL_USER;
+  const EMAIL_PASS = process.env.EMAIL_PASS;
   
-  if (!GMAIL_USER || !GMAIL_PASS) {
-    const missing = !GMAIL_USER ? 'GMAIL_USER' : 'GMAIL_PASS';
+  if (!EMAIL_USER || !EMAIL_PASS) {
+    const missing = !EMAIL_USER ? 'EMAIL_USER' : 'EMAIL_PASS';
     console.log(`  ⚠️  Missing environment variable: ${missing}. Security email aborted.`);
     return { success: false, error: 'Security email provider not configured.' };
   }
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: GMAIL_USER, pass: GMAIL_PASS }
+    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
   });
 
   try {
     await transporter.sendMail({
-      from: `"${EMAIL_FROM_NAME}" <${GMAIL_USER}>`,
+      from: `"${EMAIL_FROM_NAME}" <${EMAIL_USER}>`,
       to,
       subject,
       html
