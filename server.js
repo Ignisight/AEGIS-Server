@@ -261,6 +261,8 @@ const AttendanceSchema = new mongoose.Schema({
   submittedAt: { type: Date, default: Date.now },
   date: { type: String },
   time: { type: String },
+  ipAddress: { type: String },
+  networkStatus: { type: String, enum: ['campus', 'external', 'unknown'], default: 'unknown' },
 });
 // Compound unique: no double-submission per session per student
 AttendanceSchema.index({ sessionId: 1, email: 1 }, { unique: true });
@@ -1013,7 +1015,8 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
     }
 
     // 5. Verify via Python
-    const result = await verifyEmbedding(optimizedImage, faceRecord);
+    const livenessVerified = req.body.livenessVerified || false;
+    const result = await verifyEmbedding(optimizedImage, faceRecord, livenessVerified);
 
     // 6. Handle adaptive template update (AI-driven evolution)
     if (result.success && result.verified && result.updated_active && !result.should_flag) {
@@ -1151,6 +1154,16 @@ app.post('/api/student/submit', async (req, res) => {
   const existing = await Attendance.findOne({ sessionId: activeSession.sessionId, email: emailLower });
   if (existing) return res.json({ success: false, error: 'You have already submitted for this session.' });
 
+  // [NETWORK PROOF] Verify if student is on campus network (Issue #11)
+  const clientIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const campusIps = await getSetting('campus_public_ips', []); // Array of trusted IPs
+  let networkStatus = 'unknown';
+  
+  if (campusIps.length > 0) {
+    // Simple check: does client IP match any in whitelist?
+    networkStatus = campusIps.some(ip => clientIp.includes(ip)) ? 'campus' : 'external';
+  }
+
   // [PERFORMANCE] Push to Batch Buffer instead of blocking on write (Issue #9)
   const rollInfo = parseRollInfo(emailLower);
   const now = new Date();
@@ -1167,6 +1180,8 @@ app.post('/api/student/submit', async (req, res) => {
     submittedAt: now,
     date: now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
     time: now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    ipAddress: clientIp,
+    networkStatus: networkStatus
   });
 
   // Return geofence parameters so the student app can start local tracking
@@ -1410,6 +1425,8 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
         minutesPresent,
         percentage,
         leftAt: exitEvent ? exitEvent.timestamp : null,
+        networkStatus: attended.networkStatus || 'unknown',
+        ipAddress: attended.ipAddress || '-'
       };
     });
 
@@ -1596,8 +1613,8 @@ app.post('/api/sessions/clear-all', async (req, res) => {
 
 // Helper: build a single xlsx buffer for a session
 async function getSessionXlsxBuffer(session, rows) {
-  const excelHeaders = ['Roll No', 'Name', 'Reg No', 'Email', 'Year', 'Program', 'Branch', 'Session', 'Date', 'Time'];
-  const colWidths = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }];
+  const excelHeaders = ['Roll No', 'Name', 'Reg No', 'Email', 'Year', 'Program', 'Branch', 'Session', 'Date', 'Time', 'Network Status', 'IP Address'];
+  const colWidths = [{ wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 35 }, { wch: 14 }, { wch: 10 }, { wch: 15 }, { wch: 15 }];
 
   const wb = XLSX.utils.book_new();
   if (rows.length === 0) {
@@ -1610,6 +1627,8 @@ async function getSessionXlsxBuffer(session, rows) {
       'Year': r.year || '-', 'Program': r.program || '-',
       'Branch': r.branch || '-', 'Session': session.name,
       'Date': r.date, 'Time': r.time,
+      'Network Status': (r.networkStatus || 'unknown').toUpperCase(),
+      'IP Address': r.ipAddress || '-'
     }));
     const ws = XLSX.utils.json_to_sheet(excelData);
     ws['!cols'] = colWidths;
@@ -1922,20 +1941,40 @@ app.get('/admin-api/data', async (req, res) => {
 app.get('/admin-api/settings', async (req, res) => {
   try {
     const threshold = await getSetting('attendanceThreshold', 75);
-    res.json({ success: true, settings: { attendanceThreshold: threshold } });
+    const campusIps = await getSetting('campus_public_ips', []);
+    const wifiSsid = await getSetting('campus_wifi_ssid', '');
+    res.json({ 
+      success: true, 
+      settings: { 
+        attendanceThreshold: threshold,
+        campus_public_ips: campusIps.join(', '), // Send as string for UI
+        campus_wifi_ssid: wifiSsid
+      } 
+    });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
 app.post('/admin-api/settings', express.json(), async (req, res) => {
   try {
-    const { attendanceThreshold } = req.body;
+    const { attendanceThreshold, campus_public_ips, campus_wifi_ssid } = req.body;
+    
     if (attendanceThreshold !== undefined) {
       const val = parseInt(attendanceThreshold);
       if (isNaN(val) || val < 1 || val > 100)
         return res.json({ success: false, error: 'Threshold must be between 1 and 100' });
       await setSetting('attendanceThreshold', val);
-      cachedAttendanceReport = null; // bust cache so next fetch uses new threshold
+      cachedAttendanceReport = null;
     }
+    
+    if (campus_public_ips !== undefined) {
+      const ips = campus_public_ips.split(',').map(ip => ip.trim()).filter(ip => ip.length > 0);
+      await setSetting('campus_public_ips', ips);
+    }
+    
+    if (campus_wifi_ssid !== undefined) {
+      await setSetting('campus_wifi_ssid', campus_wifi_ssid.trim());
+    }
+
     res.json({ success: true });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });

@@ -1,6 +1,31 @@
 const MonitoringView = {
   async load() {
-    await Promise.all([this.fetchStats(), this.fetchReport()]);
+    await Promise.all([this.fetchStats(), this.fetchReport(), this.fetchNetworkSettings()]);
+  },
+
+  async fetchNetworkSettings() {
+    const data = await API.fetchSettings();
+    if (!data || !data.success || !data.settings) return;
+    
+    document.getElementById('campus-ip-input').value = data.settings.campus_public_ips || '';
+    document.getElementById('campus-wifi-input').value = data.settings.campus_wifi_ssid || '';
+  },
+
+  async saveNetworkSettings() {
+    const ips = document.getElementById('campus-ip-input').value;
+    const ssid = document.getElementById('campus-wifi-input').value;
+    
+    const d = await API.saveSettings({
+      campus_public_ips: ips,
+      campus_wifi_ssid: ssid
+    });
+    
+    if (d.success) {
+      alert('Network Security updated successfully!');
+      this.fetchNetworkSettings();
+    } else {
+      alert('Error saving network settings: ' + d.error);
+    }
   },
 
   async fetchStats() {

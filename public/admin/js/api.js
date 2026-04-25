@@ -96,5 +96,9 @@ const API = {
   addTeacher: (name, email) => API.post('approved-teachers', { name, email }),
   deleteTeacher: (email) => API.delete(`approved-teachers/${encodeURIComponent(email)}`),
   deleteStudent: (email) => API.delete(`student/${encodeURIComponent(email)}`),
-  emailLogs: () => API.get('email-logs')
+  emailLogs: () => API.get('email-logs'),
+  
+  // Settings Management
+  fetchSettings: () => API.get('settings'),
+  saveSettings: (settings) => API.post('settings', settings)
 };

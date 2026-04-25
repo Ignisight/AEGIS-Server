@@ -35,7 +35,7 @@ async function extractEmbedding(base64Image) {
   }
 }
 
-async function verifyEmbedding(base64Image, faceRecord) {
+async function verifyEmbedding(base64Image, faceRecord, livenessVerified = false) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
 
@@ -51,6 +51,7 @@ async function verifyEmbedding(base64Image, faceRecord) {
         last_update_date:  faceRecord.last_update_date 
                              || '2000-01-01',
         flagged:           faceRecord.flagged || false,
+        liveness_verified: livenessVerified,
       }),
       signal: controller.signal
     });

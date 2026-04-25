@@ -209,6 +209,29 @@
             </div>
           </div>
 
+          <!-- NETWORK SECURITY LOCKDOWN -->
+          <div class="glass p-8 rounded-[40px] border-emerald-500/10 space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-emerald-400">🛡️ Campus Network Lockdown</h3>
+                <p class="text-slate-400 text-sm mt-1">Proof of Presence: Verify students are on the physical campus network.</p>
+              </div>
+              <button onclick="MonitoringView.saveNetworkSettings()" class="bg-emerald-600 hover:bg-emerald-500 font-bold px-6 py-2 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">Apply Security</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Campus Public IP(s)</label>
+                <input id="campus-ip-input" type="text" placeholder="e.g. 103.45.2.1, 103.45.2.2" class="w-full bg-white/5 border border-white/10 text-emerald-400 font-mono text-sm px-4 py-3 rounded-xl outline-none focus:border-emerald-500/30 transition" />
+                <p class="text-[10px] text-slate-500 italic">Comma-separated. Attendance from other IPs will be flagged.</p>
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Trusted Wi-Fi Name (SSID)</label>
+                <input id="campus-wifi-input" type="text" placeholder="e.g. NITJSR_WIFI" class="w-full bg-white/5 border border-white/10 text-indigo-400 font-bold text-sm px-4 py-3 rounded-xl outline-none focus:border-indigo-500/30 transition" />
+                <p class="text-[10px] text-slate-500 italic">Students must be connected to this Wi-Fi to avoid flags.</p>
+              </div>
+            </div>
+          </div>
+
           <div class="glass p-8 rounded-[40px] space-y-6">
             <div class="flex items-center justify-between">
               <div>
