@@ -62,7 +62,8 @@ async function sendEmail(to, subject, html) {
   const GMAIL_PASS = process.env.GMAIL_PASS;
   
   if (!GMAIL_USER || !GMAIL_PASS) {
-    console.log('  ⚠️  GMAIL credentials not configured. Security email not sent.');
+    const missing = !GMAIL_USER ? 'GMAIL_USER' : 'GMAIL_PASS';
+    console.log(`  ⚠️  Missing environment variable: ${missing}. Security email aborted.`);
     return { success: false, error: 'Security email provider not configured.' };
   }
 
