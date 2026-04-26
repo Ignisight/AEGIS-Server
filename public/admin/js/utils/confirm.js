@@ -1,4 +1,4 @@
-const Confirm = {
+window.Confirm = {
   ask(title, msg, onOk) {
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-msg').textContent = msg;

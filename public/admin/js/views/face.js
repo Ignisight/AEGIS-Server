@@ -1,4 +1,4 @@
-const FaceView = {
+window.FaceView = {
   init() {
     this.search();
   },
