@@ -77,7 +77,7 @@ const FaceView = {
   },
 
   async restoreGolden(email) {
-    Confirm.show(
+    Confirm.ask(
       'Restore Golden Template?',
       `This will revert the active face template for ${email} back to the original registration data. Use this if the student is having trouble with failed scans.`,
       async () => {
@@ -97,7 +97,7 @@ const FaceView = {
   },
 
   async unbind(email) {
-    Confirm.show(
+    Confirm.ask(
       'Perform Nuclear Unbind?',
       `CRITICAL: This will PERMANENTLY delete the student's hardware binding AND their biometric face records for ${email}. This allows them to register again on a different phone.`,
       async () => {
