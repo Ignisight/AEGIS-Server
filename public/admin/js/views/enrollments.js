@@ -246,11 +246,18 @@ const EnrollmentsView = {
       const local = parts[0];
       const match = local.match(/^(\d{4})(ug|pg)([a-z]+)(\d+)$/i);
       const meta = match ? `${match[3].toUpperCase()} Class of ${match[1]}` : parts[1] || 'N/A';
+      
+      const pct = s.percentage;
+      const color = pct === null ? 'text-slate-600' : (pct < 75 ? 'text-rose-400' : 'text-emerald-400');
+      const pctDisplay = pct === null ? '—' : `${pct}%`;
+
       return `
         <tr>
-          <td class="px-8 py-5 font-bold">${sanitize(s.email)}</td>
+          <td class="px-8 py-5 font-bold text-slate-300">${sanitize(s.email)}</td>
           <td class="px-8 py-5"><span class="px-2 py-1 bg-white/5 rounded-lg text-[9px] font-bold">${sanitize(meta)}</span></td>
           <td class="px-8 py-5 text-slate-500 font-mono text-xs">${new Date(s.enrolledAt).toLocaleDateString()}</td>
+          <td class="px-8 py-5 font-bold text-xs text-slate-400">${s.attended} / ${s.totalSessions}</td>
+          <td class="px-8 py-5 font-black text-xs ${color}">${pctDisplay}</td>
           <td class="px-8 py-5 text-right"><button onclick="EnrollmentsView.removeEnrollment('${courseId}','${s.email}')" class="text-rose-500 text-xs font-bold hover:underline">X</button></td>
         </tr>`;
     }).join('');

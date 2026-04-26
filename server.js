@@ -2413,9 +2413,45 @@ app.get('/admin-api/email-logs', async (req, res) => {
 app.get('/admin-api/enrollments', async (req, res) => {
   try {
     const { courseId } = req.query;
-    const filter = courseId ? { courseId: courseId.trim().toUpperCase() } : {};
-    const enrollments = await StudentCourse.find(filter).sort({ enrolledAt: -1 });
-    res.json({ success: true, enrollments, count: enrollments.length });
+    if (!courseId) return res.json({ success: true, enrollments: [], count: 0 });
+    const cid = courseId.trim().toUpperCase();
+    
+    // 1. Get all enrollments for this course
+    const enrollments = await StudentCourse.find({ courseId: cid }).sort({ enrolledAt: -1 });
+    if (!enrollments.length) return res.json({ success: true, enrollments: [], count: 0 });
+
+    // 2. Get all stopped sessions for this course
+    const sessions = await Session.find({
+      $or: [
+        { courseId: cid },
+        { name: new RegExp(`^${cid}\\s*[—-]`, 'i') }
+      ],
+      stoppedAt: { $ne: null }
+    });
+    const totalSessions = sessions.length;
+
+    // 3. For each student, calculate attended count
+    const enriched = await Promise.all(enrollments.map(async (e) => {
+      let attended = 0;
+      if (totalSessions > 0) {
+        // Count attendance records for this student in these sessions
+        const sessionIds = sessions.map(s => s.sessionId);
+        attended = await Attendance.countDocuments({ 
+          email: e.email, 
+          sessionId: { $in: sessionIds } 
+        });
+      }
+      const percentage = totalSessions > 0 ? Math.round((attended / totalSessions) * 100) : null;
+      
+      return {
+        ...e.toObject(),
+        totalSessions,
+        attended,
+        percentage
+      };
+    }));
+
+    res.json({ success: true, enrollments: enriched, count: enriched.length });
   } catch (err) { res.json({ success: false, error: err.message }); }
 });
 
