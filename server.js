@@ -596,8 +596,9 @@ app.post('/api/register', async (req, res) => {
   res.json({ success: true, message: 'Account created! You can now login.' });
 });
 
-app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
+app.post('/api/login', verifyAppSecret, async (req, res) => {
+  const email = String(req.body.email || '');
+  const password = String(req.body.password || '');
   if (!email || !password)
     return res.json({ success: false, error: 'Email and password are required' });
 
@@ -783,8 +784,9 @@ app.get('/s/:code', async (req, res) => {
 // STUDENT MOBILE V2 API
 // ==========================================
 
-app.post('/api/student/login', async (req, res) => {
-  const { email, deviceId } = req.body;
+app.post('/api/student/login', verifyAppSecret, async (req, res) => {
+  const email = String(req.body.email || '');
+  const deviceId = String(req.body.deviceId || '');
   if (!email || !deviceId)
     return res.json({ success: false, error: 'Email and deviceId are required' });
   // FIX: Validate student email format (Issue #5)
@@ -880,7 +882,9 @@ app.post('/api/student/decode-qr', upload.single('qrimage'), async (req, res) =>
 // Called once — first time student scans QR
 // ─────────────────────────────────────────
 app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
-  const { email, deviceId, image } = req.body;
+  const email = String(req.body.email || '');
+  const deviceId = String(req.body.deviceId || '');
+  const image = String(req.body.image || '');
   if (!email || !deviceId || !image) {
     return res.json({ success: false, error: 'Missing required fields' });
   }
@@ -969,7 +973,9 @@ app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
 // Now handles adaptive update + flagging
 // ─────────────────────────────────────────
 app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
-  const { email, deviceId, image } = req.body;
+  const email = String(req.body.email || '');
+  const deviceId = String(req.body.deviceId || '');
+  const image = String(req.body.image || '');
   if (!email || !deviceId || !image) {
     return res.json({ success: false, error: 'Missing required fields' });
   }
@@ -1084,8 +1090,11 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
 });
 
 
-app.post('/api/student/submit', async (req, res) => {
-  const { email, deviceId, sessionCode, lat, lon } = req.body;
+app.post('/api/student/submit', verifyAppSecret, async (req, res) => {
+  const email = String(req.body.email || '');
+  const deviceId = String(req.body.deviceId || '');
+  const sessionCode = String(req.body.sessionCode || '');
+  const { lat, lon, faceVerified } = req.body;
   const signature = req.headers['x-signature'];
   const timestamp = req.headers['x-timestamp'];
 
@@ -1902,15 +1911,13 @@ app.use('/admin', express.static(path.join(__dirname, 'public', 'admin'), {
 
 // Use express.json() if it's not applied globally to admin-api
 app.post('/admin-api/login', express.json(), (req, res) => {
-  const { username, password } = req.body;
-  console.log(`[AUTH] Login attempt for: "${username}"`);
+  const username = String(req.body.username || '');
+  const password = String(req.body.password || '');
   
   if (username === ADMIN_USER && password === ADMIN_PASSWORD) {
-    console.log(`[AUTH] Admin login SUCCESS for user: ${username}`);
     res.json({ success: true });
   } else {
-    console.warn(`[AUTH] Admin login FAILED for user: "${username}"`);
-    console.warn(`       Expected user: "${ADMIN_USER}" | Expected pass length: ${ADMIN_PASSWORD ? ADMIN_PASSWORD.length : 0}`);
+    console.warn(`[SECURITY] Admin login FAILED for user: "${username}" from ${req.ip}`);
     res.status(401).json({ success: false, error: 'Invalid admin credentials' });
   }
 });
