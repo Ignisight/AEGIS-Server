@@ -2751,7 +2751,7 @@ app.post('/admin-api/face/restore-golden', async (req, res) => {
 });
 
 // ── Admin: Diagnostic Check ─────────────────────────────────────────────
-app.get('/admin-api/face/diagnose', async (req, res) => {
+app.get('/api/face/diagnose', async (req, res) => {
   try {
     const email = (req.query.email || '').toLowerCase().trim();
     if (!email) return res.json({ success: false, error: 'Email required as query param' });
