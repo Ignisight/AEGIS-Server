@@ -2750,6 +2750,36 @@ app.post('/admin-api/face/restore-golden', async (req, res) => {
   }
 });
 
+// ── Admin: Diagnostic Check ─────────────────────────────────────────────
+app.get('/admin-api/face/diagnose', async (req, res) => {
+  try {
+    const email = (req.query.email || '').toLowerCase().trim();
+    if (!email) return res.json({ success: false, error: 'Email required as query param' });
+
+    const deviceRecords = await Device.find({ email });
+    const faceRecord = await getFaceEmbedding(email);
+
+    res.json({
+      success: true,
+      email,
+      deviceCount: deviceRecords.length,
+      devices: deviceRecords.map(d => ({
+        deviceId: d.deviceId?.substring(0, 8) + '...',
+        faceVerificationEnabled: d.faceVerificationEnabled,
+        faceRegisteredAt: d.faceRegisteredAt,
+        registeredAt: d.registeredAt,
+      })),
+      supabaseFaceExists: !!faceRecord,
+      supabaseFlagged: faceRecord?.flagged || false,
+      supabaseDrift: faceRecord?.drift_score || 0,
+      supabaseUpdateCount: faceRecord?.update_count || 0,
+      serverVersion: '2.8.0-unified',
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // ── Admin: The "Nuclear" Unbind ─────────────────────────────────────────────
 // Clears EVERYTHING: Device ID binding + Face Template + Flag status
 app.post('/admin-api/student/unbind', async (req, res) => {
