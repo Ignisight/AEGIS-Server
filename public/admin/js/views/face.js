@@ -19,7 +19,7 @@ const FaceView = {
     body.innerHTML = '<tr><td colspan="4" class="px-8 py-20 text-center text-slate-500 font-bold animate-pulse">Searching global registry...</td></tr>';
 
     try {
-      const data = await API.get(`/face/search?q=${encodeURIComponent(q)}`);
+      const data = await API.get(`face/search?q=${encodeURIComponent(q)}`);
       if (!data) throw new Error('Network timeout or AI service unavailable.');
       if (!data.success) throw new Error(data.error || 'Unknown server error');
 
@@ -84,7 +84,7 @@ const FaceView = {
       `This will revert the active face template for ${email} back to the original registration data. Use this if the student is having trouble with failed scans.`,
       async () => {
         try {
-          const res = await API.post('/face/restore-golden', { email });
+          const res = await API.post('face/restore-golden', { email });
           if (res && res.success) {
             this.search();
             alert('Template successfully restored.');
@@ -104,7 +104,7 @@ const FaceView = {
       `CRITICAL: This will PERMANENTLY delete the student's hardware binding AND their biometric face records for ${email}. This allows them to register again on a different phone.`,
       async () => {
         try {
-          const res = await API.post('/student/unbind', { email });
+          const res = await API.post('student/unbind', { email });
           if (res && res.success) {
             this.search();
             alert('Student successfully unbound. They can now register fresh.');
