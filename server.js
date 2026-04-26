@@ -1079,6 +1079,65 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
     return res.json({ success: false, error: err.message });
   }
 });
+app.get('/api/student/courses', verifyAppSecret, async (req, res) => {
+  const email = (req.query.email || '').toLowerCase().trim();
+  if (!email) return res.json({ success: false, error: 'Email required' });
+
+  try {
+    const enrollments = await StudentCourse.find({ email });
+    if (!enrollments.length) {
+      return res.json({ success: true, courses: [] });
+    }
+
+    const courseIds = enrollments.map(e => e.courseId);
+    const coursesMaster = await Course.find({ courseId: { $in: courseIds } });
+    const courseMap = {};
+    coursesMaster.forEach(c => courseMap[c.courseId] = c);
+
+    const result = await Promise.all(enrollments.map(async (e) => {
+      const cid = e.courseId;
+      const courseDetails = courseMap[cid] || { name: cid, semester: '', department: '' };
+
+      // Find all sessions for this course
+      const sessions = await Session.find({
+        $or: [
+          { courseId: cid },
+          { name: new RegExp(`^${cid}\\s*[—-]`, 'i') }
+        ],
+        stoppedAt: { $ne: null }
+      }, 'sessionId');
+
+      const totalSessions = sessions.length;
+      let attended = 0;
+      let percentage = null;
+
+      if (totalSessions > 0) {
+        const sessionIds = sessions.map(s => s.sessionId);
+        attended = await Attendance.countDocuments({ 
+          email: email, 
+          sessionId: { $in: sessionIds } 
+        });
+        percentage = Math.round((attended / totalSessions) * 100);
+      }
+
+      return {
+        courseId: cid,
+        courseName: courseDetails.name,
+        semester: courseDetails.semester,
+        department: courseDetails.department,
+        totalSessions,
+        attended,
+        percentage
+      };
+    }));
+
+    res.json({ success: true, courses: result });
+  } catch (err) {
+    console.error('[COURSES] Error:', err.message);
+    res.json({ success: false, error: err.message });
+  }
+});
+
 
 
 app.post('/api/student/submit', verifyAppSecret, async (req, res) => {
