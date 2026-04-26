@@ -11,12 +11,10 @@ const FaceView = {
     const q = document.getElementById('face-search-input').value;
     const body = document.getElementById('faceTableBody');
     
-    if (!q || q.length < 2) {
-      body.innerHTML = '<tr><td colspan="4" class="px-8 py-20 text-center text-slate-500 font-bold">Search for a student to manage their face record</td></tr>';
-      return;
-    }
+    // No query check removed to allow showing latest students by default
 
-    body.innerHTML = '<tr><td colspan="4" class="px-8 py-20 text-center text-slate-500 font-bold animate-pulse">Searching global registry...</td></tr>';
+    const loadingMsg = q.trim() ? 'Searching global registry...' : 'Loading latest bindings...';
+    body.innerHTML = `<tr><td colspan="4" class="px-8 py-20 text-center text-slate-500 font-bold animate-pulse">${loadingMsg}</td></tr>`;
 
     try {
       const data = await API.get(`face/search?q=${encodeURIComponent(q)}`);

@@ -2661,15 +2661,20 @@ app.post('/admin-api/course-groups/:id/enroll', upload.single('file'), async (re
 app.get('/admin-api/face/search', async (req, res) => {
   try {
     const { q } = req.query;
-    if (!q || q.length < 2) return res.json({ success: true, list: [] });
-
-    const query = q.toLowerCase();
-    const list = await Device.find({
-      $or: [
-        { email: { $regex: query, $options: 'i' } },
-        { deviceId: { $regex: query, $options: 'i' } }
-      ]
-    }).limit(20);
+    let list;
+    
+    if (!q || q.trim().length < 2) {
+      // If no query, show latest 5 registered students
+      list = await Device.find({}).sort({ registeredAt: -1 }).limit(5);
+    } else {
+      const query = q.toLowerCase().trim();
+      list = await Device.find({
+        $or: [
+          { email: { $regex: query, $options: 'i' } },
+          { deviceId: { $regex: query, $options: 'i' } }
+        ]
+      }).limit(20);
+    }
 
     const result = await Promise.all(list.map(async d => {
       const faceRecord = await getFaceEmbedding(d.email);
