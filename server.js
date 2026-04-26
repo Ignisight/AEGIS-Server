@@ -977,8 +977,9 @@ app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
 app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
   const email = String(req.body.email || '');
   const deviceId = String(req.body.deviceId || '');
-  const image = String(req.body.image || '');
-  if (!email || !deviceId || !image) {
+  const image = req.body.image || '';
+  const video = req.body.video || '';
+  if (!email || !deviceId || (!image && !video)) {
     return res.json({ success: false, error: 'Missing required fields' });
   }
 
@@ -992,20 +993,26 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
     }
 
     // 2. Unified Registration/Verification
-    // If student has no face data yet, treat this as the first registration (Auto-Enroll)
     const faceRecord = await getFaceEmbedding(emailLower);
     const needsRegistration = !student.faceVerificationEnabled || !faceRecord;
     
     console.log(`[FACE_FLOW] Email: ${emailLower} | Flag: ${student.faceVerificationEnabled} | Record: ${!!faceRecord} | Result: ${needsRegistration ? 'REGISTER' : 'VERIFY'}`);
 
-    // 4. Handle Image Burst (Motion Sequence)
-    const images = Array.isArray(image) ? image : [image];
-    console.log(`[FACE_FLOW] Received burst of ${images.length} frames for: ${emailLower}`);
+    // 4. Prepare data for AI — video mode or image mode
+    let aiPayload;
+    if (video) {
+      aiPayload = { video };
+      console.log(`[FACE_FLOW] Received VIDEO for: ${emailLower}`);
+    } else {
+      const images = Array.isArray(image) ? image : [image];
+      aiPayload = { images };
+      console.log(`[FACE_FLOW] Received ${images.length} image(s) for: ${emailLower}`);
+    }
 
     if (needsRegistration) {
         console.log(`[FACE_FLOW] Entering Registration for: ${emailLower}`);
         // Extract embedding via Python service (using burst for liveness)
-        const faceData = await extractEmbedding(images);
+        const faceData = await extractEmbedding(aiPayload);
 
         if (faceData.face_confidence < 0.85) {
             console.log(`[FACE_FLOW] Registration failed - Low confidence: ${faceData.face_confidence}`);
@@ -1034,66 +1041,38 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
 
     // 5. Normal Verification Flow
     const livenessVerified = req.body.livenessVerified || false;
-    const result = await verifyEmbedding(images, faceRecord, livenessVerified);
+    const result = await verifyEmbedding(aiPayload, faceRecord, livenessVerified);
 
     // 6. Handle adaptive template update (AI-driven evolution)
     if (result.success && result.verified && result.updated_active && !result.should_flag) {
-      // Check if we already updated today to avoid over-fitting
       const today = new Date().toISOString().split('T')[0];
       if (faceRecord.last_update_date !== today) {
         await updateActiveTemplate(
           emailLower, 
           result.updated_active, 
-          result.drift, 
+          result.score_golden || 0, 
           faceRecord.update_count
         );
-        console.log(`[FACE] Template evolved for: ${emailLower} (drift: ${result.drift})`);
+        console.log(`[FACE] Template evolved for: ${emailLower}`);
       }
     }
 
     // 7. Handle flagging
     if (result.should_flag) {
-      await flagAccount(emailLower, result.flag_reason);
-
-      await SecurityEvent.create({
-        email: emailLower,
-        event: 'face_flag',
-        reason: result.flag_reason,
-        scoreActive: result.score_active,
-        scoreGolden: result.score_golden,
-        drift: result.drift,
-      });
-
-      if (result.match) {
-        return res.json({
-          success: true,
-          verified: true,
-          flagged: true,
-          warning: 'Account flagged for security review.',
-          scoreActive: result.score_active,
-          scoreGolden: result.score_golden,
-        });
-      }
+      await flagAccount(emailLower, 'AI_SECURITY_FLAG');
+      console.log(`[FACE] Account flagged: ${emailLower}`);
     }
 
-    // 8. Failed verification
-    if (!result.match) {
-      await SecurityEvent.create({
-        email: emailLower,
-        event: 'face_fail',
-        scoreActive: result.score_active,
-        scoreGolden: result.score_golden,
-        drift: result.drift,
-      });
-
+    // 8. Return result
+    if (!result.verified) {
       return res.json({
         success: false,
-        error: 'Face did not match. Ensure good lighting and only your face is visible.',
-        similarity: result.similarity,
+        error: 'Face did not match. Ensure good lighting and face the camera directly.',
+        score: result.score_golden,
       });
     }
 
-    return res.json({ success: true, verified: true, similarity: result.similarity });
+    return res.json({ success: true, verified: true, score: result.score_golden });
 
   } catch (err) {
     console.error('verify-face error:', err.message);

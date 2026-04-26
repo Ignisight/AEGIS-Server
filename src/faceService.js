@@ -6,15 +6,15 @@ const FACE_URL = process.env.FACE_SERVICE_URL
 // ─────────────────────────────────────────
 // Python service calls
 // ─────────────────────────────────────────
-async function extractEmbedding(base64Images) {
+async function extractEmbedding(payload) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s for video
 
   try {
     const res = await fetch(`${FACE_URL}/extract-embedding`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images: Array.isArray(base64Images) ? base64Images : [base64Images] }),
+      body: JSON.stringify(payload),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -35,16 +35,16 @@ async function extractEmbedding(base64Images) {
   }
 }
 
-async function verifyEmbedding(base64Images, faceRecord, livenessVerified = false) {
+async function verifyEmbedding(payload, faceRecord, livenessVerified = false) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s for video
 
   try {
     const res = await fetch(`${FACE_URL}/verify-face`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        images: Array.isArray(base64Images) ? base64Images : [base64Images],
+        ...payload,
         golden_embedding:  faceRecord.golden_embedding,
         active_embedding:  faceRecord.active_embedding,
         update_count:      faceRecord.update_count,
