@@ -989,18 +989,12 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
       return res.json({ success: false, error: 'Device not registered' });
     }
 
-    // 2. No face yet — tell app to register first
-    if (!student.faceVerificationEnabled) {
-      return res.json({ success: false, needsRegistration: true });
-    }
-
-    // 3. Get both templates from Supabase
+    // 2. Unified Registration/Verification
+    // If student has no face data yet, treat this as the first registration (Auto-Enroll)
     const faceRecord = await getFaceEmbedding(emailLower);
-    if (!faceRecord) {
-      student.faceVerificationEnabled = false;
-      await student.save();
-      return res.json({ success: false, needsRegistration: true });
-    }
+    const needsRegistration = !student.faceVerificationEnabled || !faceRecord;
+    
+    console.log(`[FACE_FLOW] Email: ${emailLower} | Flag: ${student.faceVerificationEnabled} | Record: ${!!faceRecord} | Result: ${needsRegistration ? 'REGISTER' : 'VERIFY'}`);
 
     // 4. Optimized Image Processing to prevent Render OOM
     let optimizedImage = image;
@@ -1013,14 +1007,44 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
           jimpImg.resize({ w: 800 });
           const buffer = await jimpImg.getBuffer('image/jpeg', { quality: 75 });
           optimizedImage = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-          console.log(`[FACE] Verification image resized for memory safety: ${emailLower}`);
+          console.log(`[FACE] Image resized for memory safety: ${emailLower}`);
         }
       } catch (resizeErr) {
         console.warn('Image resize failed:', resizeErr.message);
       }
     }
 
-    // 5. Verify via Python
+    if (needsRegistration) {
+        console.log(`[FACE_FLOW] Entering Registration for: ${emailLower}`);
+        // Extract embedding via Python service
+        const faceData = await extractEmbedding(optimizedImage);
+
+        if (faceData.face_confidence < 0.85) {
+            console.log(`[FACE_FLOW] Registration failed - Low confidence: ${faceData.face_confidence}`);
+            return res.json({
+                success: false,
+                error: 'Face not clear enough. Try better lighting and face the camera directly.',
+            });
+        }
+
+        // Store embedding in Supabase as Golden Record
+        await storeFaceEmbedding(emailLower, faceData.embedding, faceData.face_confidence);
+
+        // Update MongoDB flag
+        student.faceVerificationEnabled = true;
+        student.faceRegisteredAt = new Date();
+        await student.save();
+
+        console.log(`[FACE_FLOW] Registration success for: ${emailLower}`);
+        return res.json({ 
+            success: true, 
+            verified: true, 
+            wasRegistration: true,
+            message: 'Face registered successfully!' 
+        });
+    }
+
+    // 5. Normal Verification Flow
     const livenessVerified = req.body.livenessVerified || false;
     const result = await verifyEmbedding(optimizedImage, faceRecord, livenessVerified);
 
@@ -2734,19 +2758,32 @@ app.post('/admin-api/student/unbind', async (req, res) => {
     if (!email) return res.json({ success: false, error: 'Email required' });
     const emailLower = email.toLowerCase().trim();
 
-    // 1. Clear Biometrics (Supabase)
-    await deleteFaceEmbedding(emailLower);
+    console.log(`[ADMIN] Starting Nuclear Unbind for: ${emailLower}`);
 
-    // 2. Delete Device Binding (MongoDB)
-    const result = await Device.deleteOne({ email: emailLower });
-
-    if (result.deletedCount === 0) {
-      return res.json({ success: false, error: 'No active binding found for this email.' });
+    // 1. Clear Biometrics (Supabase) - Do this first and don't fail if device is missing
+    let biometricsCleared = false;
+    try {
+      await deleteFaceEmbedding(emailLower);
+      biometricsCleared = true;
+    } catch (bioErr) {
+      console.warn(`[ADMIN] Biometric clear warning for ${emailLower}:`, bioErr.message);
     }
 
-    console.log(`[ADMIN] Nuclear Unbind executed for: ${emailLower}`);
-    res.json({ success: true, message: `Binding and Biometrics fully cleared for ${emailLower}. Student can now register on any device.` });
+    // 2. Delete Device Binding (MongoDB)
+    const result = await Device.deleteMany({ email: emailLower });
+
+    console.log(`[ADMIN] Nuclear Unbind result for ${emailLower}: DeviceDeleted=${result.deletedCount}, BiometricsCleared=${biometricsCleared}`);
+    
+    if (result.deletedCount === 0 && !biometricsCleared) {
+      return res.json({ success: false, error: 'No active records or biometrics found for this email.' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Nuclear Unbind complete. ${result.deletedCount} device bindings removed. Biometrics cleared: ${biometricsCleared}.` 
+    });
   } catch (err) {
+    console.error(`[ADMIN] Nuclear Unbind FATAL for ${email}:`, err.message);
     res.json({ success: false, error: err.message });
   }
 });

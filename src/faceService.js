@@ -111,8 +111,8 @@ async function getFaceEmbedding(email) {
       flagged,
       flagged_reason
     `)
-    .eq('email', email)
-    .single();
+    .ilike('email', email)
+    .maybeSingle();
 
   if (error || !data) return null;
   return data;
@@ -185,11 +185,14 @@ async function resetToGolden(email) {
 }
 
 async function deleteFaceEmbedding(email) {
+  // Use ilike for case-insensitive deletion to ensure old records with mixed casing are cleared
   const { error } = await supabase
     .from('face_embeddings')
     .delete()
-    .eq('email', email);
+    .ilike('email', email);
+    
   if (error) throw new Error('Delete failed: ' + error.message);
+  console.log(`[FACE] Biometric record cleared for: ${email}`);
 }
 
 module.exports = {
