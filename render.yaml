@@ -28,16 +28,4 @@ services:
       - key: SUPABASE_SERVICE_KEY
         sync: false
       - key: FACE_SERVICE_URL
-        value: http://aegis-ai:7860
-
-  # 2. Private AI Service (Python/DeepFace)
-  # Reachable only by aegis-server via internal network
-  - type: private-service
-    name: aegis-ai
-    runtime: docker
-    plan: starter
-    dockerContext: ./ai_service
-    dockerfilePath: ./ai_service/Dockerfile
-    envVars:
-      - key: DEEPFACE_HOME
-        value: /
+        sync: false
