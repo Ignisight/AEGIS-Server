@@ -998,28 +998,14 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
     
     console.log(`[FACE_FLOW] Email: ${emailLower} | Flag: ${student.faceVerificationEnabled} | Record: ${!!faceRecord} | Result: ${needsRegistration ? 'REGISTER' : 'VERIFY'}`);
 
-    // 4. Optimized Image Processing to prevent Render OOM
-    let optimizedImage = image;
-    const b64Length = image.length;
-
-    if (b64Length > 1500000) {
-      try {
-        const jimpImg = await Jimp.read(Buffer.from(image.split(',')[1], 'base64'));
-        if (jimpImg.bitmap.width > 800) {
-          jimpImg.resize({ w: 800 });
-          const buffer = await jimpImg.getBuffer('image/jpeg', { quality: 75 });
-          optimizedImage = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-          console.log(`[FACE] Image resized for memory safety: ${emailLower}`);
-        }
-      } catch (resizeErr) {
-        console.warn('Image resize failed:', resizeErr.message);
-      }
-    }
+    // 4. Handle Image Burst (Motion Sequence)
+    const images = Array.isArray(image) ? image : [image];
+    console.log(`[FACE_FLOW] Received burst of ${images.length} frames for: ${emailLower}`);
 
     if (needsRegistration) {
         console.log(`[FACE_FLOW] Entering Registration for: ${emailLower}`);
-        // Extract embedding via Python service
-        const faceData = await extractEmbedding(optimizedImage);
+        // Extract embedding via Python service (using burst for liveness)
+        const faceData = await extractEmbedding(images);
 
         if (faceData.face_confidence < 0.85) {
             console.log(`[FACE_FLOW] Registration failed - Low confidence: ${faceData.face_confidence}`);
@@ -1048,7 +1034,7 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
 
     // 5. Normal Verification Flow
     const livenessVerified = req.body.livenessVerified || false;
-    const result = await verifyEmbedding(optimizedImage, faceRecord, livenessVerified);
+    const result = await verifyEmbedding(images, faceRecord, livenessVerified);
 
     // 6. Handle adaptive template update (AI-driven evolution)
     if (result.success && result.verified && result.updated_active && !result.should_flag) {

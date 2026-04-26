@@ -6,7 +6,7 @@ const FACE_URL = process.env.FACE_SERVICE_URL
 // ─────────────────────────────────────────
 // Python service calls
 // ─────────────────────────────────────────
-async function extractEmbedding(base64Image) {
+async function extractEmbedding(base64Images) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
 
@@ -14,7 +14,7 @@ async function extractEmbedding(base64Image) {
     const res = await fetch(`${FACE_URL}/extract-embedding`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64Image }),
+      body: JSON.stringify({ images: Array.isArray(base64Images) ? base64Images : [base64Images] }),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -35,7 +35,7 @@ async function extractEmbedding(base64Image) {
   }
 }
 
-async function verifyEmbedding(base64Image, faceRecord, livenessVerified = false) {
+async function verifyEmbedding(base64Images, faceRecord, livenessVerified = false) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
 
@@ -44,7 +44,7 @@ async function verifyEmbedding(base64Image, faceRecord, livenessVerified = false
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        image: base64Image,
+        images: Array.isArray(base64Images) ? base64Images : [base64Images],
         golden_embedding:  faceRecord.golden_embedding,
         active_embedding:  faceRecord.active_embedding,
         update_count:      faceRecord.update_count,
