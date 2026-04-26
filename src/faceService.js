@@ -8,7 +8,7 @@ const FACE_URL = process.env.FACE_SERVICE_URL
 // ─────────────────────────────────────────
 async function extractEmbedding(payload) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s for video
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s for cold starts
 
   try {
     const res = await fetch(`${FACE_URL}/extract-embedding`, {
@@ -19,17 +19,16 @@ async function extractEmbedding(payload) {
     });
     clearTimeout(timeoutId);
     
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error(text.slice(0, 200)); }
     if (!res.ok) throw new Error(data.detail || 'Extraction failed');
     return data;
   } catch (err) {
     clearTimeout(timeoutId);
-    console.error(`[FACE] extractEmbedding failed (URL: ${FACE_URL}):`, err.message);
+    console.error(`[FACE] extractEmbedding failed:`, err.message);
     if (err.name === 'AbortError') {
-      throw new Error('AI Service timed out. The model might be waking up—please try again in 1 minute.');
-    }
-    if (err.message.includes('fetch failed')) {
-      throw new Error(`AI Service unreachable at ${FACE_URL}. Check if the service is running.`);
+      throw new Error('AI Service is waking up. Please wait 1 minute and try again.');
     }
     throw err;
   }
@@ -37,7 +36,7 @@ async function extractEmbedding(payload) {
 
 async function verifyEmbedding(payload, faceRecord, livenessVerified = false) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s for video
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s for cold starts
 
   try {
     const res = await fetch(`${FACE_URL}/verify-face`, {
@@ -57,17 +56,16 @@ async function verifyEmbedding(payload, faceRecord, livenessVerified = false) {
     });
     clearTimeout(timeoutId);
 
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error(text.slice(0, 200)); }
     if (!res.ok) throw new Error(data.detail || 'Verification failed');
     return data;
   } catch (err) {
     clearTimeout(timeoutId);
-    console.error(`[FACE] verifyEmbedding failed (URL: ${FACE_URL}):`, err.message);
+    console.error(`[FACE] verifyEmbedding failed:`, err.message);
     if (err.name === 'AbortError') {
-      throw new Error('AI Service timed out. Please try again.');
-    }
-    if (err.message.includes('fetch failed')) {
-      throw new Error(`AI Service unreachable at ${FACE_URL}. Check if the service is running.`);
+      throw new Error('AI Service is waking up. Please wait 1 minute and try again.');
     }
     throw err;
   }
