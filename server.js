@@ -1225,12 +1225,11 @@ app.get('/api/teacher-courses', async (req, res) => {
 // ==========================================
 app.get('/api/student/courses', async (req, res) => {
   const { email } = req.query;
-  if (!email) return res.json({ success: false, error: 'email is required' });
-  const emailLower = email.toLowerCase().trim();
+  const emailLower = (email || '').toLowerCase().trim();
   try {
     const enrollments = await StudentCourse.find({ email: emailLower });
     if (!enrollments.length) return res.json({ success: true, courses: [] });
-    const courseIds = enrollments.map(e => e.courseId);
+    const courseIds = enrollments.map(e => e.courseId.trim().toUpperCase());
     const courses = await Course.find({ courseId: { $in: courseIds } });
     const courseMap = {};
     courses.forEach(c => courseMap[c.courseId] = { name: c.name, semester: c.semester || '', department: c.department || '' });
@@ -2414,7 +2413,7 @@ app.get('/admin-api/email-logs', async (req, res) => {
 app.get('/admin-api/enrollments', async (req, res) => {
   try {
     const { courseId } = req.query;
-    const filter = courseId ? { courseId } : {};
+    const filter = courseId ? { courseId: courseId.trim().toUpperCase() } : {};
     const enrollments = await StudentCourse.find(filter).sort({ enrolledAt: -1 });
     res.json({ success: true, enrollments, count: enrollments.length });
   } catch (err) { res.json({ success: false, error: err.message }); }
