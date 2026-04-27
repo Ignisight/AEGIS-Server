@@ -1627,15 +1627,27 @@ app.get('/api/history', async (req, res) => {
   }
 
   const sessions = await query;
-  const result = await Promise.all(sessions.map(async s => ({
+  
+  // OPTIMIZATION: Fetch all response counts in a single aggregation query (Issue #9)
+  const sessionIds = sessions.map(s => s.sessionId);
+  const counts = await Attendance.aggregate([
+    { $match: { sessionId: { $in: sessionIds } } },
+    { $group: { _id: "$sessionId", count: { $sum: 1 } } }
+  ]);
+  const countMap = counts.reduce((acc, curr) => {
+    acc[curr._id] = curr.count;
+    return acc;
+  }, {});
+
+  const result = sessions.map(s => ({
     id: s.sessionId,
     name: s.name,
     createdAt: s.createdAt,
     stoppedAt: s.stoppedAt || null,
     active: s.active,
-    durationMs: s.durationMs || (60 * 60 * 1000), // Default to 1 hr if not set
-    responseCount: await Attendance.countDocuments({ sessionId: s.sessionId }),
-  })));
+    durationMs: s.durationMs || (60 * 60 * 1000), 
+    responseCount: countMap[s.sessionId] || 0,
+  }));
 
   const response = { success: true, sessions: result };
   // FIX: Include pagination metadata only when pagination is active (Issue #6)
