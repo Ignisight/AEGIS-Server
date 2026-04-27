@@ -25,6 +25,11 @@ This is the core backend for the A.E.G.I.S ecosystem. It handles data persistenc
 *   `POST /api/session/start`: Initializes a new geo-fenced classroom session.
 *   `GET /api/responses/:sessionId`: Real-time student verification logs.
 
+### Admin Flow (Web Dashboard)
+*   **Access**: Navigate to `/admin/` (e.g., `http://localhost:3000/admin/` or your Render deployment URL).
+*   **Features**: Whitelist teachers, manage biometric records, flag suspicious accounts, and view system analytics.
+
+
 ## 🚀 Deployment
 
 ### Requirements
