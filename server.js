@@ -191,6 +191,10 @@ async function connectDB() {
       });
       console.log('  ✅  MongoDB Atlas connected.');
       dbReady = true;
+      try {
+        await mongoose.model('Teacher').updateMany({}, { $set: { allowedDomain: '' } });
+        console.log('  ✅  Cleared Teacher allowedDomains.');
+      } catch (e) {}
       return;
     } catch (err) {
       console.error(`  ❌  MongoDB attempt ${attempt}/10: ${err.message}`);
