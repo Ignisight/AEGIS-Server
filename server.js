@@ -1446,9 +1446,14 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
       const attended = attendedMap[email];
       
       if (!attended) {
+        const localEmailPart = email.split('@')[0];
+        const match = localEmailPart.match(/^(\d{4})(ug|pg)([a-z]{2,4})(\d+)$/i);
+        const derivedRoll = match ? localEmailPart.toUpperCase() : '—';
         return {
           email,
-          rollNumber: '—',
+          rollNumber: derivedRoll,
+          regNo: derivedRoll,
+          name: localEmailPart,
           sessionName: session.name,
           courseId: session.courseId,
           date: '—',
@@ -1475,6 +1480,8 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
       return {
         email,
         rollNumber: attended.rollNo || attended.regNo || '—',
+        regNo: attended.regNo || attended.rollNo || '—',
+        name: attended.name || email.split('@')[0],
         sessionName: session.name,
         courseId: session.courseId,
         date: attended.date || '—',
