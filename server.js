@@ -24,8 +24,7 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const archiver = require('archiver');
 const { OAuth2Client } = require('google-auth-library');
-const GOOGLE_CLIENT_ID = '133030296175-jo6v4cbqupug7dc14sk2g7ob1s2mbgh3.apps.googleusercontent.com';
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+// googleClient will be initialized after dotenv loads
 const {
   extractEmbedding,
   verifyEmbedding,
@@ -53,7 +52,8 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 // COLLEGE CONFIG
 // ==========================================
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '188263362905-05e73in41h1ib970spt6q3meoidg2fte.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '133030296175-jo6v4cbqupug7dc14sk2g7ob1s2mbgh3.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'work.anuragkishan@gmail.com';
