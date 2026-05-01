@@ -13,7 +13,7 @@ from scipy.fftpack import fft2, fftshift
 # ─────────────────────────────────────────
 MODEL_NAME = "ArcFace"      # SOTA recognition
 DETECTOR   = "retinaface"   # SOTA detection
-THRESHOLD  = 0.68           # Strictness
+THRESHOLD  = 0.60           # Relaxed for glasses/accessories tolerance
 MIN_CONFIDENCE = 0.85
 LEARNING_RATE = 0.1
 
