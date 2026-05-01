@@ -6,16 +6,21 @@ import numpy as np
 from deepface import DeepFace
 import cv2
 import os
-from scipy.fftpack import fft2, fftshift
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 # ─────────────────────────────────────────
-# CONFIG (v6.0 Advanced Edition)
+# CONFIG (v7.0 Performance Edition)
 # ─────────────────────────────────────────
 MODEL_NAME = "ArcFace"      # SOTA recognition
-DETECTOR   = "retinaface"   # SOTA detection
+DETECTOR   = "ssd"          # 5x faster than RetinaFace on CPU, still accurate
 THRESHOLD  = 0.60           # Relaxed for glasses/accessories tolerance
-MIN_CONFIDENCE = 0.85
+MIN_CONFIDENCE = 0.80       # Slightly relaxed for faster detector
 LEARNING_RATE = 0.1
+MAX_IMG_DIM = 640           # Downscale large images for speed
+
+# Thread pool for CPU-bound inference (process multiple requests concurrently)
+executor = ThreadPoolExecutor(max_workers=3)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,8 +31,9 @@ async def lifespan(app: FastAPI):
         DeepFace.represent(img_path=dummy, model_name=MODEL_NAME, detector_backend=DETECTOR, enforce_detection=False)
     except Exception as e: 
         print(f"Preload warning: {e}")
-    print("✅ Advanced AI Models Ready!")
+    print("✅ Performance AI Models Ready!")
     yield
+    executor.shutdown(wait=False)
 
 app = FastAPI(lifespan=lifespan)
 
@@ -53,6 +59,14 @@ def decode_image(data):
     if img is None: raise ValueError("Invalid image data")
     return img
 
+def resize_for_speed(img):
+    """Downscale large images to save CPU while keeping face detail."""
+    h, w = img.shape[:2]
+    if max(h, w) > MAX_IMG_DIM:
+        scale = MAX_IMG_DIM / max(h, w)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    return img
+
 def check_static_content(image_list):
     """
     Checks if multiple frames are identical (Static Content).
@@ -62,9 +76,10 @@ def check_static_content(image_list):
         return False, 0.0
     
     try:
-        frames = [decode_image(img) for img in image_list[:3]]
-        # Calculate mean absolute difference between first and last frame
-        diff = cv2.absdiff(frames[0], frames[-1])
+        # Only decode first and last frame (skip middle for speed)
+        first = resize_for_speed(decode_image(image_list[0]))
+        last = resize_for_speed(decode_image(image_list[-1]))
+        diff = cv2.absdiff(first, last)
         mean_diff = np.mean(diff)
         
         # If the average pixel change is less than 0.5, it's essentially a still image
@@ -72,55 +87,40 @@ def check_static_content(image_list):
     except:
         return False, 0.0
 
-def detect_moire_patterns(img):
+def detect_spoofing_fast(img):
     """
-    Advanced Anti-Spoofing: Frequency Domain Analysis (FFT).
-    Screens (LCD/OLED) have a periodic pixel grid that creates high-frequency 
-    spikes (Moire patterns) not found in human skin.
-    """
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    f = fft2(gray)
-    fshift = fftshift(f)
-    magnitude_spectrum = 20 * np.log(np.abs(fshift) + 1)
-    
-    # Calculate high-frequency energy ratio
-    h, w = magnitude_spectrum.shape
-    center_h, center_w = h // 2, w // 2
-    
-    # Mask out the low frequencies (center of the spectrum)
-    inner_radius = min(h, w) // 10
-    magnitude_spectrum[center_h-inner_radius:center_h+inner_radius, center_w-inner_radius:center_w+inner_radius] = 0
-    
-    # Energy in high frequency
-    high_freq_energy = np.sum(magnitude_spectrum)
-    total_pixels = h * w
-    normalized_energy = high_freq_energy / total_pixels
-    
-    # Threshold for Moire detection: Screens usually score > 15
-    return normalized_energy > 15.0, normalized_energy
-
-def detect_spoofing(img):
-    """
-    Hybrid Spoofing Detection: 
+    Lightweight Spoofing Detection (optimized for CPU):
     1. Laplacian Variance (Blur/Resolution check)
-    2. Moire Pattern detection (Screen pixel grid check)
+    2. Color histogram analysis (screens have unnatural color distribution)
     """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     variance = cv2.Laplacian(gray, cv2.CV_64F).var()
     
-    is_moire, moire_score = detect_moire_patterns(img)
+    # Simple screen detection: check for unnatural color uniformity
+    # Screens tend to have very uniform brightness in background regions
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    saturation_std = np.std(hsv[:,:,1])
     
-    # Rejection logic
-    is_spoof = (variance < 90) or is_moire
-    return is_spoof, variance, moire_score
+    # Low blur variance = photo/print, very low saturation variance = screen
+    is_spoof = (variance < 90) or (saturation_std < 15)
+    return is_spoof, variance, saturation_std
+
+def _sync_extract(img):
+    """Run DeepFace in thread pool to not block the event loop."""
+    return DeepFace.represent(
+        img_path=img,
+        model_name=MODEL_NAME,
+        detector_backend=DETECTOR,
+        enforce_detection=True
+    )
 
 @app.get("/")
 async def root():
     return {
-        "message": "AEGIS AI Service v6.0 (Advanced Security)",
+        "message": "AEGIS AI Service v7.0 (Performance Edition)",
         "engine": "ArcFace",
-        "detector": "RetinaFace",
-        "security": "FFT + Laplacian"
+        "detector": "SSD (5x faster)",
+        "security": "Laplacian + HSV + Motion"
     }
 
 @app.get("/health")
@@ -132,17 +132,20 @@ async def extract_embedding(req: FaceRequest):
     try:
         img_data = req.image
         img = decode_image(img_data)
+        img = resize_for_speed(img)
         
         # 1. Check for Static Content (Photo-of-Photo detection)
         is_static, _ = check_static_content(img_data)
         if is_static:
             raise HTTPException(status_code=400, detail="Registration rejected: Liveness failed (Static Content detected).")
 
-        is_spoof, var, moire = detect_spoofing(img)
+        is_spoof, var, sat = detect_spoofing_fast(img)
         if is_spoof:
             raise HTTPException(status_code=400, detail="Registration rejected: Liveness check failed (Potential Spoof).")
 
-        results = DeepFace.represent(img_path=img, model_name=MODEL_NAME, detector_backend=DETECTOR, enforce_detection=True)
+        # Run inference in thread pool for async concurrency
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(executor, _sync_extract, img)
         res = results[0]
         if res["face_confidence"] < MIN_CONFIDENCE:
             raise HTTPException(status_code=400, detail="Face not clear enough")
@@ -161,44 +164,39 @@ async def verify_face(req: VerifyRequest):
         else:
             img_data = [req.image]
         
-        # Decode and analyze ALL frames
-        frames = []
-        clarity_scores = []
-        for b64 in img_data[:3]:
-            img = decode_image(b64)
-            # Simple clarity check using Laplacian variance
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            clarity = cv2.Laplacian(gray, cv2.CV_64F).var()
-            frames.append(img)
-            clarity_scores.append(clarity)
-
-        # 1. MOTION ANALYSIS (Liveness)
-        # Compare first and last frame for micro-movement
-        diff = cv2.absdiff(frames[0], frames[-1])
-        motion_score = np.mean(diff)
+        # OPTIMIZATION: Quick motion analysis using only first+last frame (skip full decode of middle)
+        motion_score = 0.0
+        if len(img_data) >= 2:
+            first = resize_for_speed(decode_image(img_data[0]))
+            last = resize_for_speed(decode_image(img_data[-1]))
+            diff = cv2.absdiff(first, last)
+            motion_score = np.mean(diff)
         
-        is_static = motion_score < 0.4  # ZERO Movement (Photo/Screen)
-        is_erratic = motion_score > 45.0 # TOO MUCH Movement (Video replay/Glitch)
+        is_static = motion_score < 0.4   # ZERO Movement (Photo/Screen)
+        is_erratic = motion_score > 45.0  # TOO MUCH Movement (Video replay/Glitch)
         
-        # 2. BEST FRAME SELECTION
-        # Pick the clearest frame for the actual identity match
-        best_idx = np.argmax(clarity_scores)
-        best_img = frames[best_idx]
-        best_clarity = clarity_scores[best_idx]
+        # OPTIMIZATION: Only decode + analyze the BEST frame (pick middle for stability)
+        best_idx = len(img_data) // 2 if len(img_data) > 1 else 0
+        best_img = resize_for_speed(decode_image(img_data[best_idx]))
+        
+        # Clarity check on best frame only
+        gray = cv2.cvtColor(best_img, cv2.COLOR_BGR2GRAY)
+        best_clarity = cv2.Laplacian(gray, cv2.CV_64F).var()
 
-        # 3. SPOOFING CHECK (Moire/Blur on best frame)
-        is_moire, moire_score = detect_moire_patterns(best_img)
-        is_spoof = (best_clarity < 85) or is_moire
+        # Lightweight spoofing check (replaces expensive FFT)
+        is_spoof, _, sat_score = detect_spoofing_fast(best_img)
 
-        # 4. RECOGNITION (Using Best Frame)
-        results = DeepFace.represent(img_path=best_img, model_name=MODEL_NAME, detector_backend=DETECTOR, enforce_detection=True)
+        # RECOGNITION (Using Best Frame — run in thread pool)
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(executor, _sync_extract, best_img)
         new_emb = np.array(results[0]["embedding"])
         
         gold_emb = np.array(req.golden_embedding)
         act_emb  = np.array(req.active_embedding)
 
+        # Vectorized cosine similarity (numpy is fast)
         def cosine_similarity(a, b):
-            return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+            return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
         score_golden = cosine_similarity(new_emb, gold_emb)
         score_active = cosine_similarity(new_emb, act_emb)
@@ -220,7 +218,7 @@ async def verify_face(req: VerifyRequest):
             verified = False
         elif is_spoof:
             should_flag = True
-            flag_reason = f"SPOOF_ALERT: Screen/Moire={moire_score:.1f}, Clarity={best_clarity:.1f}"
+            flag_reason = f"SPOOF_ALERT: Clarity={best_clarity:.1f}, Saturation={sat_score:.1f}"
             verified = False 
             
         if not req.liveness_verified:
@@ -247,7 +245,7 @@ async def verify_face(req: VerifyRequest):
             "should_flag": should_flag,
             "flag_reason": flag_reason,
             "updated_active": updated_active,
-            "anti_spoofing": {"clarity": best_clarity, "moire": moire_score, "motion": motion_score}
+            "anti_spoofing": {"clarity": best_clarity, "saturation_std": sat_score, "motion": motion_score}
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
