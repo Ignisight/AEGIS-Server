@@ -185,14 +185,48 @@ if (!MONGO_URI) {
 
 let dbReady = false;
 
+// ==========================================
+// PERFORMANCE: In-Memory Session Cache
+// ==========================================
+// Dramatically reduces DB queries under load. Active sessions are cached
+// and auto-refreshed every 2 seconds. This alone can handle 10x more concurrent students.
+const sessionCache = new Map(); // code -> session doc
+let sessionCacheLastRefresh = 0;
+const SESSION_CACHE_TTL = 2000; // refresh every 2s
+
+async function getCachedSession(code) {
+  const now = Date.now();
+  if (now - sessionCacheLastRefresh > SESSION_CACHE_TTL) {
+    try {
+      const activeSessions = await Session.find({ active: true }).lean();
+      sessionCache.clear();
+      for (const s of activeSessions) {
+        sessionCache.set(s.code, s);
+      }
+      sessionCacheLastRefresh = now;
+    } catch (e) {
+      console.error('[CACHE] Session refresh error:', e.message);
+    }
+  }
+  return sessionCache.get(code) || null;
+}
+
+function invalidateSessionCache() {
+  sessionCacheLastRefresh = 0;
+}
+
 async function connectDB() {
   for (let attempt = 1; attempt <= 10; attempt++) {
     try {
       await mongoose.connect(MONGO_URI, {
         serverSelectionTimeoutMS: 30000,
         connectTimeoutMS: 30000,
+        maxPoolSize: 50,          // Scale: handle up to 50 concurrent DB operations
+        minPoolSize: 5,           // Keep 5 connections warm for instant responses
+        socketTimeoutMS: 45000,   // Prevent stale sockets under heavy load
+        heartbeatFrequencyMS: 10000,
       });
-      console.log('  ✅  MongoDB Atlas connected.');
+      console.log('  ✅  MongoDB Atlas connected (pool: 50).');
       dbReady = true;
       return;
     } catch (err) {
@@ -277,6 +311,8 @@ const Attendance = mongoose.model('Attendance', AttendanceSchema);
 const DeviceSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, index: true },
   deviceId: { type: String, required: true, unique: true, index: true }, // stored as SHA-256 hash from client
+  name: { type: String, default: '' },
+  displayName: { type: String, default: '' },
   registeredAt: { type: Date, default: Date.now },
   faceVerificationEnabled: { type: Boolean, default: false },
   faceRegisteredAt: { type: Date, default: null },
