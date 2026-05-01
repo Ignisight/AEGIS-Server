@@ -23,6 +23,9 @@ const jsQR = require('jsqr');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const archiver = require('archiver');
+const { OAuth2Client } = require('google-auth-library');
+const GOOGLE_CLIENT_ID = '133030296175-jo6v4cbqupug7dc14sk2g7ob1s2mbgh3.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const {
   extractEmbedding,
   verifyEmbedding,
@@ -825,6 +828,67 @@ app.post('/api/student/login', verifyAppSecret, async (req, res) => {
     name: emailLower.split('@')[0], 
     displayName: emailLower.split('@')[0] 
   });
+});
+
+app.post('/api/student/google-login', verifyAppSecret, async (req, res) => {
+  const { idToken, deviceId } = req.body;
+  if (!idToken || !deviceId)
+    return res.json({ success: false, error: 'idToken and deviceId are required' });
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: idToken,
+      audience: GOOGLE_CLIENT_ID, 
+    });
+    const payload = ticket.getPayload();
+    const emailLower = payload.email.toLowerCase().trim();
+    const name = payload.given_name || payload.name || emailLower.split('@')[0];
+    const displayName = payload.name || name;
+
+    if (!isValidEmail(emailLower)) {
+       return res.status(400).json({ success: false, error: 'Invalid Google email format.' });
+    }
+
+    const existingDevice = await Device.findOne({ deviceId });
+    if (existingDevice) {
+      if (existingDevice.email !== emailLower) {
+        return res.json({
+          success: false,
+          error: `This phone is already bound to ${existingDevice.email}. Using multiple emails on one phone is NOT allowed.`,
+        });
+      }
+      // Same device + same email = returning user
+      existingDevice.name = name;
+      existingDevice.displayName = displayName;
+      await existingDevice.save();
+
+      return res.json({ 
+        success: true, 
+        message: 'Welcome back!', 
+        faceVerificationEnabled: existingDevice.faceVerificationEnabled || false,
+        name: existingDevice.name,
+        displayName: existingDevice.displayName
+      });
+    }
+
+    // New device — register it
+    await Device.create({ 
+      email: emailLower, 
+      deviceId,
+      name: name,
+      displayName: displayName
+    });
+    res.json({ 
+      success: true, 
+      message: 'Device securely registered via Google!', 
+      faceVerificationEnabled: false,
+      name: name, 
+      displayName: displayName 
+    });
+  } catch (err) {
+    console.error("Google Auth Error:", err);
+    return res.json({ success: false, error: 'Invalid Google token. Please try signing in again.' });
+  }
 });
 
 // GET /api/student/face-config
