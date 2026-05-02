@@ -3156,7 +3156,7 @@ async function runAttendanceEmailJob() {
 
       // Check if we already emailed this student about low attendance in the last 7 days
       const recentLog = await EmailLog.findOne({
-        email,
+        to: email,
         sentAt: { $gte: sevenDaysAgo }
       });
 
@@ -3190,10 +3190,9 @@ async function runAttendanceEmailJob() {
           if (mailRes.success) {
             sentInThisRun++;
             quotaRemaining--;
-            
             // CRITICAL FIX: Actually log the email so we don't spam them again!
             await EmailLog.create({
-              email,
+              to: email,
               courses: alertCourseIds,
               sentAt: new Date()
             });
