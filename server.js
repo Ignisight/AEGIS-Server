@@ -1895,7 +1895,15 @@ app.get('/api/history', async (req, res) => {
   
   let filter = {};
   if (teacherEmail) {
-    filter = { teacherEmail: teacherEmail.toLowerCase().trim() };
+    const emailLower = teacherEmail.toLowerCase().trim();
+    filter = { 
+      $or: [
+        { teacherEmail: emailLower },
+        { teacherEmail: { $exists: false } },
+        { teacherEmail: "" },
+        { teacherEmail: null }
+      ]
+    };
   }
 
   let query = Session.find(filter).sort({ createdAt: -1 });
