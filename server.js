@@ -355,6 +355,7 @@ const DeviceSchema = new mongoose.Schema({
   faceRegisteredAt: { type: Date, default: null },
   lastIp: { type: String, default: '' },
   lastScanAt: { type: Date, default: null },
+  faceFailCount: { type: Number, default: 0 },
 });
 const Device = mongoose.model('Device', DeviceSchema);
 
@@ -1286,13 +1287,23 @@ app.post('/api/student/verify-face', faceVerificationLimiter, verifyAppSecret, a
         );
         console.log(`[FACE] Template evolved for: ${emailLower}`);
       }
+      // SUCCESS: Reset fail count
+      student.faceFailCount = 0;
+      await student.save();
     }
 
-    // 7. Handle flagging (Log but don't block during testing)
-    if (result.should_flag) {
-      logger.warn('AI SECURITY FLAG DETECTED', { email: emailLower, reason: result.flag_reason });
-      // await flagAccount(emailLower, 'AI_SECURITY_FLAG');
-      // console.log(`[FACE] Account flagged: ${emailLower}`);
+    // 7. Handle flagging (Flag only after 10 failed attempts)
+    if (!result.verified || result.should_flag) {
+      student.faceFailCount = (student.faceFailCount || 0) + 1;
+      await student.save();
+      
+      if (student.faceFailCount >= 10) {
+        logger.warn('MAX FACE FAILURES REACHED: Flagging account', { email: emailLower, count: student.faceFailCount });
+        await flagAccount(emailLower, `ANOMALY: 10 consecutive face failures. Last reason: ${result.flag_reason || 'mismatch'}`);
+        console.log(`[FACE] Account flagged: ${emailLower} (10 fails)`);
+      } else {
+        logger.warn('Face attempt failed', { email: emailLower, count: student.faceFailCount, reason: result.flag_reason });
+      }
     }
 
     // 8. Return result
@@ -1301,6 +1312,7 @@ app.post('/api/student/verify-face', faceVerificationLimiter, verifyAppSecret, a
         success: false,
         error: 'Face did not match. Ensure good lighting and face the camera directly.',
         score: result.score_golden,
+        attemptsLeft: 10 - student.faceFailCount
       });
     }
 
