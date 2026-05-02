@@ -569,7 +569,6 @@ function verifyAppSecret(req, res, next) {
   const keys = [
     process.env.APP_SECRET_KEY, 
     process.env.APP_SECRET_KEY_V1,
-    'XGHUQeMoj4eKHf0sDBcWaFwfyUtKbvNAKF2NwnUv' // Hardcoded fallback to match app
   ].filter(Boolean);
   
   let isValidSignature = false;
