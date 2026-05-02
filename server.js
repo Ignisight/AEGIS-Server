@@ -3190,6 +3190,13 @@ async function runAttendanceEmailJob() {
           if (mailRes.success) {
             sentInThisRun++;
             quotaRemaining--;
+            
+            // CRITICAL FIX: Actually log the email so we don't spam them again!
+            await EmailLog.create({
+              email,
+              courses: alertCourseIds,
+              sentAt: new Date()
+            });
           }
           
           // 2-second rate-limit throttle to avoid spam blocks
