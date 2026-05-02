@@ -1236,7 +1236,7 @@ app.post('/api/student/verify-face', faceVerificationLimiter, verifyAppSecret, a
       logger.info('Face payload: VIDEO', { email: emailLower });
     } else {
       const images = Array.isArray(image) ? image : [image];
-      aiPayload = { images };
+      aiPayload = { image: images };
       logger.info('Face payload: IMAGES', { email: emailLower, count: images.length });
     }
 
