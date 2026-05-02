@@ -35,39 +35,50 @@ async function extractEmbedding(payload) {
 }
 
 async function verifyEmbedding(payload, faceRecord, livenessVerified = false) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s for cold starts
+  let attempt = 0;
+  const maxRetries = 2;
 
-  try {
-    const res = await fetch(`${FACE_URL}/verify-face`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...payload,
-        golden_embedding:  faceRecord.golden_embedding,
-        active_embedding:  faceRecord.active_embedding,
-        update_count:      faceRecord.update_count,
-        last_update_date:  faceRecord.last_update_date 
-                             || '2000-01-01',
-        flagged:           faceRecord.flagged || false,
-        liveness_verified: livenessVerified,
-      }),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+  while (attempt <= maxRetries) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // Strict 5s timeout per FAANG audit
 
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { throw new Error(text.slice(0, 200)); }
-    if (!res.ok) throw new Error(data.detail || 'Verification failed');
-    return data;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.error(`[FACE] verifyEmbedding failed:`, err.message);
-    if (err.name === 'AbortError') {
-      throw new Error('AI Service is waking up. Please wait 1 minute and try again.');
+    try {
+      const res = await fetch(`${FACE_URL}/verify-face`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...payload,
+          golden_embedding:  faceRecord.golden_embedding,
+          active_embedding:  faceRecord.active_embedding,
+          update_count:      faceRecord.update_count,
+          last_update_date:  faceRecord.last_update_date || '2000-01-01',
+          flagged:           faceRecord.flagged || false,
+          liveness_verified: livenessVerified,
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error(text.slice(0, 200)); }
+      if (!res.ok) throw new Error(data.detail || 'Verification failed');
+      return data;
+    } catch (err) {
+      attempt++;
+      console.error(`[FACE] verifyEmbedding attempt ${attempt} failed:`, err.message);
+      if (attempt > maxRetries) {
+        if (err.name === 'AbortError') {
+          // Throw specific 503 equivalent error
+          const error = new Error('AI Service Timeout (503). Service overloaded or waking up.');
+          error.status = 503;
+          throw error;
+        }
+        throw err;
+      }
+      // Wait before retry
+      await new Promise(r => setTimeout(r, 1000));
     }
-    throw err;
   }
 }
 

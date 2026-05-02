@@ -562,9 +562,20 @@ function verifyAppSecret(req, res, next) {
   }
   seenNonces.add(nonce);
 
-  // 3. Verify Signature
-  const expectedSignature = crypto.createHash('sha256').update(timestamp + nonce + process.env.APP_SECRET_KEY).digest('hex');
-  if (signature !== expectedSignature) {
+  // 3. Verify Signature with Full Payload & Key Rotation
+  const payloadData = req.rawBody || '';
+  const keys = [process.env.APP_SECRET_KEY, process.env.APP_SECRET_KEY_V1].filter(Boolean);
+  
+  let isValidSignature = false;
+  for (const key of keys) {
+      const expectedSignature = crypto.createHash('sha256').update(payloadData + timestamp + nonce + key).digest('hex');
+      if (signature === expectedSignature) {
+          isValidSignature = true;
+          break;
+      }
+  }
+
+  if (!isValidSignature) {
      logger.warn(`[SECURITY] Signature mismatch`, { ip: req.ip });
      return res.status(403).json({ success: false, error: 'Invalid digital signature.' });
   }
@@ -591,7 +602,12 @@ app.use(cors({
     callback(new Error('CORS: Origin not allowed'));
   },
 }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ 
+  limit: '50mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString(); // Capture exact payload for HMAC signing
+  }
+}));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.urlencoded({ extended: true }));
 
