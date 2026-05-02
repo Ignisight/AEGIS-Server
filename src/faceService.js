@@ -22,7 +22,10 @@ async function extractEmbedding(payload) {
     const text = await res.text();
     let data;
     try { data = JSON.parse(text); } catch { throw new Error(text.slice(0, 200)); }
-    if (!res.ok) throw new Error(data.detail || 'Extraction failed');
+    if (!res.ok) {
+      const errorDetail = (data && data.detail) ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : 'Extraction failed';
+      throw new Error(errorDetail);
+    }
     return data;
   } catch (err) {
     clearTimeout(timeoutId);
@@ -62,7 +65,10 @@ async function verifyEmbedding(payload, faceRecord, livenessVerified = false) {
       const text = await res.text();
       let data;
       try { data = JSON.parse(text); } catch { throw new Error(text.slice(0, 200)); }
-      if (!res.ok) throw new Error(data.detail || 'Verification failed');
+      if (!res.ok) {
+        const errorDetail = (data && data.detail) ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : 'Verification failed';
+        throw new Error(errorDetail);
+      }
       return data;
     } catch (err) {
       attempt++;
