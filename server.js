@@ -583,6 +583,7 @@ function verifyAppSecret(req, res, next) {
   }
 
   if (!isValidSignature) {
+     // FORCE RENDER DEPLOY COMMENT
      const debugMsg = `[SECURITY] Signature mismatch | sig:${(signature || 'N/A').slice(0, 8)} | ts:${timestamp} | len:${payloadData.length}`;
      logger.warn(debugMsg, { 
         ip: req.ip, 
