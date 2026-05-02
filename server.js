@@ -563,12 +563,15 @@ function verifyAppSecret(req, res, next) {
   seenNonces.add(nonce);
 
   // 3. Verify Signature with Full Payload & Key Rotation
-  const payloadData = req.rawBody || '';
+  // We trim() the payload to handle potential trailing newlines added by network proxies/clients
+  const payloadData = (req.rawBody || '').trim();
   const keys = [process.env.APP_SECRET_KEY, process.env.APP_SECRET_KEY_V1].filter(Boolean);
   
   let isValidSignature = false;
   for (const key of keys) {
-      const expectedSignature = crypto.createHash('sha256').update(payloadData + timestamp + nonce + key).digest('hex');
+      const expectedSignature = crypto.createHmac('sha256', key)
+                                      .update(payloadData + timestamp + nonce)
+                                      .digest('hex');
       if (signature === expectedSignature) {
           isValidSignature = true;
           break;
