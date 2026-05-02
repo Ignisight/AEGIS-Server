@@ -1211,10 +1211,11 @@ app.post('/api/student/verify-face', faceVerificationLimiter, verifyAppSecret, a
     const now = new Date();
     if (student.lastIp && student.lastIp !== clientIp && student.lastScanAt) {
       const timeDiffMinutes = (now - student.lastScanAt) / 60000;
-      if (timeDiffMinutes < 10) {
-        // IP changed completely in less than 10 minutes - highly suspicious proxy/sharing
-        logger.warn('BEHAVIORAL ANOMALY: Impossible Travel Detected', { email: emailLower, oldIp: student.lastIp, newIp: clientIp, timeDiffMinutes });
-        await flagAccount(emailLower, `ANOMALY: Impossible Travel. IP changed from ${student.lastIp} to ${clientIp} in ${Math.round(timeDiffMinutes)}m`);
+      if (timeDiffMinutes < 5) { // Relaxed to 5 mins
+        // IP changed completely in less than 5 minutes - just log it for now
+        logger.warn('BEHAVIORAL ANOMALY: IP Shift Detected', { email: emailLower, oldIp: student.lastIp, newIp: clientIp, timeDiffMinutes });
+        // DEACTIVATED: Too many false positives on 5G/Cloudflare
+        // await flagAccount(emailLower, `ANOMALY: Impossible Travel. IP changed from ${student.lastIp} to ${clientIp} in ${Math.round(timeDiffMinutes)}m`);
       }
     }
     
