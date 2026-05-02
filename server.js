@@ -530,12 +530,45 @@ setInterval(() => {
 
 // [SECURITY] Master Secret Middleware (Issue #10)
 // Validates that the request is coming from the official mobile app
+const seenNonces = new Set();
+// Clean up old nonces every 2 minutes
+setInterval(() => seenNonces.clear(), 120000);
+
 function verifyAppSecret(req, res, next) {
-  const secret = req.headers['x-app-secret'];
-  if (!secret || secret !== process.env.APP_SECRET_KEY) {
-    console.warn(`[SECURITY] Blocked request from ${req.ip} — Invalid/Missing Master Secret`);
-    return res.status(403).json({ success: false, error: 'Unauthorized: Access restricted to AEGIS App.' });
+  const signature = req.headers['x-signature'];
+  const timestamp = req.headers['x-timestamp'];
+  const nonce = req.headers['x-nonce'];
+  
+  if (!signature || !timestamp || !nonce) {
+     // Fallback for teacher web portal & old app versions
+     const secret = req.headers['x-app-secret'];
+     if (secret === process.env.APP_SECRET_KEY) return next();
+     
+     logger.warn(`[SECURITY] Missing Replay Protection headers`, { ip: req.ip || req.headers['x-forwarded-for'] });
+     return res.status(403).json({ success: false, error: 'Unauthorized: Replay protection required.' });
   }
+
+  // 1. Strict Expiry (< 30 seconds)
+  const timeDiff = Date.now() - parseInt(timestamp, 10);
+  if (timeDiff > 30000 || timeDiff < -5000) {
+     logger.warn(`[SECURITY] Replay Attack Blocked (Expired)`, { ip: req.ip });
+     return res.status(403).json({ success: false, error: 'Request expired. Possible replay attack.' });
+  }
+
+  // 2. Nonce Verification (Prevent Duplicates)
+  if (seenNonces.has(nonce)) {
+     logger.warn(`[SECURITY] Replay Attack Blocked (Duplicate Nonce)`, { ip: req.ip, nonce });
+     return res.status(403).json({ success: false, error: 'Duplicate request detected.' });
+  }
+  seenNonces.add(nonce);
+
+  // 3. Verify Signature
+  const expectedSignature = crypto.createHash('sha256').update(timestamp + nonce + process.env.APP_SECRET_KEY).digest('hex');
+  if (signature !== expectedSignature) {
+     logger.warn(`[SECURITY] Signature mismatch`, { ip: req.ip });
+     return res.status(403).json({ success: false, error: 'Invalid digital signature.' });
+  }
+
   next();
 }
 
