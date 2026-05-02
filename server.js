@@ -1244,7 +1244,24 @@ app.post('/api/student/verify-face', faceVerificationLimiter, verifyAppSecret, a
     if (needsRegistration) {
         console.log(`[FACE_FLOW] Entering Registration for: ${emailLower}`);
         // Extract embedding via Python service (using burst for liveness)
-        const faceData = await extractEmbedding(aiPayload);
+        let faceData;
+        try {
+            faceData = await extractEmbedding(aiPayload);
+            // Success: Reset fail count
+            student.faceFailCount = 0;
+            await student.save();
+        } catch (err) {
+            // Failure: Increment count
+            student.faceFailCount = (student.faceFailCount || 0) + 1;
+            await student.save();
+            
+            if (student.faceFailCount >= 10) {
+                logger.warn('MAX FACE REGISTRATION FAILURES REACHED: Flagging account', { email: emailLower, count: student.faceFailCount });
+                await flagAccount(emailLower, `ANOMALY: 10 registration failures. Last error: ${err.message}`);
+                console.log(`[FACE] Account flagged during registration: ${emailLower}`);
+            }
+            throw err; // Re-throw to handle in catch block
+        }
 
         if (faceData.face_confidence < 0.85) {
             console.log(`[FACE_FLOW] Registration failed - Low confidence: ${faceData.face_confidence}`);
@@ -1874,7 +1891,14 @@ app.get('/api/history', async (req, res) => {
   const page = parseInt(req.query.page) || 0;
   const limit = parseInt(req.query.limit) || 0;
 
-  let query = Session.find().sort({ createdAt: -1 });
+  const teacherEmail = req.query.teacherEmail;
+  
+  let filter = {};
+  if (teacherEmail) {
+    filter = { teacherEmail: teacherEmail.toLowerCase().trim() };
+  }
+
+  let query = Session.find(filter).sort({ createdAt: -1 });
   let total;
 
   // FIX: Only paginate when params are explicitly provided — existing app gets full list (Issue #6)
