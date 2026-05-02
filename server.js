@@ -1288,10 +1288,11 @@ app.post('/api/student/verify-face', faceVerificationLimiter, verifyAppSecret, a
       }
     }
 
-    // 7. Handle flagging
+    // 7. Handle flagging (Log but don't block during testing)
     if (result.should_flag) {
-      await flagAccount(emailLower, 'AI_SECURITY_FLAG');
-      console.log(`[FACE] Account flagged: ${emailLower}`);
+      logger.warn('AI SECURITY FLAG DETECTED', { email: emailLower, reason: result.flag_reason });
+      // await flagAccount(emailLower, 'AI_SECURITY_FLAG');
+      // console.log(`[FACE] Account flagged: ${emailLower}`);
     }
 
     // 8. Return result
