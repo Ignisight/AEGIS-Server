@@ -8,6 +8,8 @@ process.env.TZ = 'Asia/Kolkata';
 console.log('🚀 [STARTUP] A.E.G.I.S Booting Sequence Initiated...');
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
+const winston = require('winston');
 const compression = require('compression');
 const cors = require('cors');
 const path = require('path');
@@ -37,15 +39,50 @@ const {
 } = require('./src/faceService');
 
 
-// We will use native console.log since Render handles timestamping and log rotation automatically.
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console()
+  ]
+});
 
 const fsFilters = require('fs');
 if (!fsFilters.existsSync('./logs')) {
   fsFilters.mkdirSync('./logs');
 }
 
+// ==========================================
+// SECURITY: RATE LIMITING (Abuse Protection)
+// ==========================================
+// Protects against DDoS, brute force, and abuse.
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Limit each IP to 300 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests from this IP, please try again later.' }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 10, // Limit each IP to 10 login/auth attempts per window
+  message: { success: false, error: 'Too many authentication attempts. Account locked for 10 minutes.' }
+});
+
+const faceVerificationLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 15, // Limit each IP to 15 face verification attempts per window
+  message: { success: false, error: 'Too many face verifications. Please wait 5 minutes.' }
+});
+
 const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
+// Apply global rate limiting to all requests
+app.use(globalLimiter);
 app.use(compression());
 const PORT = process.env.PORT || 3000;
 
@@ -316,6 +353,8 @@ const DeviceSchema = new mongoose.Schema({
   registeredAt: { type: Date, default: Date.now },
   faceVerificationEnabled: { type: Boolean, default: false },
   faceRegisteredAt: { type: Date, default: null },
+  lastIp: { type: String, default: '' },
+  lastScanAt: { type: Date, default: null },
 });
 const Device = mongoose.model('Device', DeviceSchema);
 
@@ -825,7 +864,7 @@ app.get('/s/:code', async (req, res) => {
 // STUDENT MOBILE V2 API
 // ==========================================
 
-app.post('/api/student/login', verifyAppSecret, async (req, res) => {
+app.post('/api/student/login', authLimiter, verifyAppSecret, async (req, res) => {
   const email = String(req.body.email || '');
   const deviceId = String(req.body.deviceId || '');
   if (!email || !deviceId)
@@ -866,7 +905,7 @@ app.post('/api/student/login', verifyAppSecret, async (req, res) => {
   });
 });
 
-app.post('/api/student/google-login', verifyAppSecret, async (req, res) => {
+app.post('/api/student/google-login', authLimiter, verifyAppSecret, async (req, res) => {
   const { idToken, deviceId } = req.body;
   if (!idToken || !deviceId)
     return res.json({ success: false, error: 'idToken and deviceId are required' });
@@ -1070,15 +1109,19 @@ app.post('/api/student/register-face', verifyAppSecret, async (req, res) => {
   }
 });
 
+app.set('trust proxy', 1);
+
 // ─────────────────────────────────────────
 // POST /api/student/verify-face
-// Now handles adaptive update + flagging
+// Now handles adaptive update + flagging + anomalies
 // ─────────────────────────────────────────
-app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
+app.post('/api/student/verify-face', faceVerificationLimiter, verifyAppSecret, async (req, res) => {
   const email = String(req.body.email || '');
   const deviceId = String(req.body.deviceId || '');
   const image = req.body.image || '';
   const video = req.body.video || '';
+  const clientIp = req.headers['x-forwarded-for'] || req.ip;
+
   if (!email || !deviceId || (!image && !video)) {
     return res.json({ success: false, error: 'Missing required fields' });
   }
@@ -1089,24 +1132,40 @@ app.post('/api/student/verify-face', verifyAppSecret, async (req, res) => {
     const student = await Device.findOne({ email: emailLower, deviceId });
 
     if (!student) {
+      logger.warn('Unauthorized verification attempt', { email: emailLower, ip: clientIp, reason: 'Device not registered' });
       return res.json({ success: false, error: 'Device not registered' });
     }
+
+    // --- BEHAVIORAL ANOMALY DETECTION (Impossible Travel) ---
+    const now = new Date();
+    if (student.lastIp && student.lastIp !== clientIp && student.lastScanAt) {
+      const timeDiffMinutes = (now - student.lastScanAt) / 60000;
+      if (timeDiffMinutes < 10) {
+        // IP changed completely in less than 10 minutes - highly suspicious proxy/sharing
+        logger.warn('BEHAVIORAL ANOMALY: Impossible Travel Detected', { email: emailLower, oldIp: student.lastIp, newIp: clientIp, timeDiffMinutes });
+        await flagAccount(emailLower, `ANOMALY: Impossible Travel. IP changed from ${student.lastIp} to ${clientIp} in ${Math.round(timeDiffMinutes)}m`);
+      }
+    }
+    
+    student.lastIp = clientIp;
+    student.lastScanAt = now;
+    await student.save();
 
     // 2. Unified Registration/Verification
     const faceRecord = await getFaceEmbedding(emailLower);
     const needsRegistration = !student.faceVerificationEnabled || !faceRecord;
     
-    console.log(`[FACE_FLOW] Email: ${emailLower} | Flag: ${student.faceVerificationEnabled} | Record: ${!!faceRecord} | Result: ${needsRegistration ? 'REGISTER' : 'VERIFY'}`);
+    logger.info('Face flow initiated', { email: emailLower, needsRegistration, ip: clientIp });
 
     // 4. Prepare data for AI — video mode or image mode
     let aiPayload;
     if (video) {
       aiPayload = { video };
-      console.log(`[FACE_FLOW] Received VIDEO for: ${emailLower}`);
+      logger.info('Face payload: VIDEO', { email: emailLower });
     } else {
       const images = Array.isArray(image) ? image : [image];
       aiPayload = { images };
-      console.log(`[FACE_FLOW] Received ${images.length} image(s) for: ${emailLower}`);
+      logger.info('Face payload: IMAGES', { email: emailLower, count: images.length });
     }
 
     if (needsRegistration) {
