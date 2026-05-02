@@ -1528,6 +1528,13 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
     const enrollments = await StudentCourse.find({ courseId: session.courseId });
     const enrolledEmails = enrollments.map(e => e.email.toLowerCase().trim());
 
+    // 1.5 Fetch real names from Device collection (Google Auth)
+    const devices = await Device.find({ email: { $in: enrolledEmails } });
+    const deviceMap = {};
+    devices.forEach(d => {
+      deviceMap[d.email] = d.displayName || d.name || d.email.split('@')[0];
+    });
+
     // 2. Get attendance records
     const attendance = await Attendance.find({ sessionId });
     const attendedMap = {};
@@ -1544,6 +1551,7 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
     // 5. Build report
     const report = enrolledEmails.map(email => {
       const attended = attendedMap[email];
+      const realName = deviceMap[email] || email.split('@')[0];
       
       if (!attended) {
         const localEmailPart = email.split('@')[0];
@@ -1553,7 +1561,7 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
           email,
           rollNumber: derivedRoll,
           regNo: derivedRoll,
-          name: localEmailPart,
+          name: realName,
           sessionName: session.name,
           courseId: session.courseId,
           date: '—',
@@ -1581,7 +1589,7 @@ app.get('/api/sessions/:id/full-report', async (req, res) => {
         email,
         rollNumber: attended.rollNo || attended.regNo || '—',
         regNo: attended.regNo || attended.rollNo || '—',
-        name: attended.name || email.split('@')[0],
+        name: realName || attended.name || email.split('@')[0],
         sessionName: session.name,
         courseId: session.courseId,
         date: attended.date || '—',
