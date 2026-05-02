@@ -583,7 +583,8 @@ function verifyAppSecret(req, res, next) {
   }
 
   if (!isValidSignature) {
-     logger.warn(`[SECURITY] Signature mismatch`, { 
+     const debugMsg = `[SECURITY] Signature mismatch | sig:${(signature || 'N/A').slice(0, 8)} | ts:${timestamp} | len:${payloadData.length}`;
+     logger.warn(debugMsg, { 
         ip: req.ip, 
         logSignature: signature,
         logTimestampHeader: timestamp,
