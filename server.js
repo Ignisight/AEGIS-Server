@@ -579,7 +579,15 @@ function verifyAppSecret(req, res, next) {
   }
 
   if (!isValidSignature) {
-     logger.warn(`[SECURITY] Signature mismatch`, { ip: req.ip });
+     logger.warn(`[SECURITY] Signature mismatch`, { 
+        ip: req.ip, 
+        received: signature,
+        timestamp,
+        nonce,
+        payloadLen: payloadData.length,
+        // We log the first 20 chars of payload for debugging, but not the whole thing (PII)
+        payloadPrefix: payloadData.slice(0, 20) 
+     });
      return res.status(403).json({ success: false, error: 'Invalid digital signature.' });
   }
 
