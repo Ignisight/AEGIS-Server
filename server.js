@@ -2971,6 +2971,7 @@ app.post('/admin-api/student/unbind', async (req, res) => {
 // ==========================================
 const DAILY_EMAIL_LIMIT = 400; // Safe limit per day
 const DAYS_BETWEEN_ALERTS = 7; // Don't email same student for same course within 7 days
+const ALERT_THRESHOLD = 75; // Send alerts if attendance drops below 75%
 
 async function runAttendanceEmailJob() {
   if (!process.env.BREVO_API_KEY) {
