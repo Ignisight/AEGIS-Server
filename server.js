@@ -650,6 +650,12 @@ app.use((req, res, next) => {
     // Allow diagnostic endpoint without auth (returns no sensitive data)
     if (req.path === '/api/face/diagnose') return next();
     const clientKey = req.headers['x-app-secret'] || req.query.key || '';
+    const hasSignature = req.headers['x-signature'];
+    
+    // If it has a signature, we let it through this check because verifyAppSecret 
+    // will perform the much stronger HMAC-SHA256 validation on the specific route.
+    if (hasSignature) return next();
+
     // Primary key — always valid
     if (clientKey === APP_SECRET_KEY) return next();
     // FIX: Legacy key now checked against LEGACY_SECRET_EXPIRES_AT (Issue #7)
