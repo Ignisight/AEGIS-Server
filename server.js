@@ -1894,7 +1894,7 @@ app.get('/api/history', async (req, res) => {
   const teacherEmail = req.query.teacherEmail;
   
   let filter = {};
-  if (teacherEmail) {
+  if (teacherEmail && teacherEmail !== 'undefined') {
     const emailLower = teacherEmail.toLowerCase().trim();
     filter = { 
       $or: [
@@ -1905,6 +1905,8 @@ app.get('/api/history', async (req, res) => {
       ]
     };
   }
+
+  console.log(`[HISTORY] Fetching history for: ${teacherEmail || 'ALL'}, Filter:`, JSON.stringify(filter));
 
   let query = Session.find(filter).sort({ createdAt: -1 });
   let total;
