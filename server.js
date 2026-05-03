@@ -107,13 +107,8 @@ async function sendEmail(to, subject, html) {
   }
 
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Use STARTTLS
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-    tls: {
-        rejectUnauthorized: false
-    }
+    service: 'gmail',
+    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
   });
 
   try {
@@ -789,7 +784,7 @@ app.post('/api/update-profile', async (req, res) => {
 
 // ---- SECURE OTP PASSWORD RESET ----
 
-app.post('/api/forgot-password', verifyAppSecret, async (req, res) => {
+app.post('/api/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.json({ success: false, error: 'Email is required' });
 
@@ -830,7 +825,7 @@ app.post('/api/forgot-password', verifyAppSecret, async (req, res) => {
   res.json({ success: true, message: `OTP sent to ${emailLower}` });
 });
 
-app.post('/api/reset-password', verifyAppSecret, async (req, res) => {
+app.post('/api/reset-password', async (req, res) => {
   const { email, otp, newPassword } = req.body;
   if (!email || !otp || !newPassword)
     return res.json({ success: false, error: 'Email, OTP and new password are required' });
