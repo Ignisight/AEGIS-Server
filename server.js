@@ -98,58 +98,62 @@ const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Attendance System';
 
 // Send security/auth email via Gmail SMTP (Password Recovery & OTP Only)
 async function sendEmail(to, subject, html) {
+  const BREVO_API_KEY = process.env.BREVO_API_KEY;
   const EMAIL_USER = process.env.EMAIL_USER;
   const EMAIL_PASS = process.env.EMAIL_PASS;
-  
-  if (!EMAIL_USER || !EMAIL_PASS) {
-    console.log('  ⚠️  Email credentials (SMTP) not configured. OTP aborted.');
-    return { success: false, error: 'OTP service not configured.' };
-  }
 
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Use STARTTLS
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-    tls: {
-        rejectUnauthorized: false // Helps in some restricted environments
+  // 1. Prefer Brevo (HTTP API is immune to port blocks on Render)
+  if (BREVO_API_KEY) {
+    try {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) return { success: true };
+      return { success: false, error: data.message || 'Brevo error' };
+    } catch (err) {
+      console.error('[BREVO] Error:', err.message);
     }
-  });
-
-  try {
-    await transporter.sendMail({
-      from: `"${EMAIL_FROM_NAME}" <${EMAIL_USER}>`,
-      to,
-      subject,
-      html
-    });
-    return { success: true };
-  } catch (err) {
-    console.error('[GMAIL] Error:', err.message);
-    return { success: false, error: err.message };
   }
+
+  // 2. Fallback to Gmail (Port 587)
+  if (EMAIL_USER && EMAIL_PASS) {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+      tls: { rejectUnauthorized: false }
+    });
+
+    try {
+      await transporter.sendMail({
+        from: `"${EMAIL_FROM_NAME}" <${EMAIL_USER}>`,
+        to,
+        subject,
+        html
+      });
+      return { success: true };
+    } catch (err) {
+      console.error('[GMAIL] Error:', err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
+  console.log('  ⚠️  No email provider configured.');
+  return { success: false, error: 'Email provider not configured on server.' };
 }
 
-// Student notifications via Brevo HTTP API
+// Student notifications (alias to unified sendEmail)
 async function sendStudentEmail(to, subject, html) {
-  const BREVO_API_KEY = process.env.BREVO_API_KEY;
-  if (!BREVO_API_KEY) {
-    console.log('  ⚠️  BREVO_API_KEY not configured.');
-    return { success: false, error: 'Email service not configured.' };
-  }
-  try {
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
-        to: [{ email: to }],
-        subject,
-        htmlContent: html,
-      }),
-    });
-    return res.ok ? { success: true } : { success: false };
-  } catch (err) { return { success: false, error: err.message }; }
+  return await sendEmail(to, subject, html);
 }
 
 function generateSessionCode() {
@@ -1201,11 +1205,9 @@ app.post('/api/student/verify-face', faceVerificationLimiter, verifyAppSecret, a
     const now = new Date();
     if (student.lastIp && student.lastIp !== clientIp && student.lastScanAt) {
       const timeDiffMinutes = (now - student.lastScanAt) / 60000;
-      if (timeDiffMinutes < 5) { // Relaxed to 5 mins
-        // IP changed completely in less than 5 minutes - just log it for now
+      if (timeDiffMinutes < 15) { // Relaxed to 15 mins for mobile networks
+        // IP changed completely in less than 15 minutes - just log it
         logger.warn('BEHAVIORAL ANOMALY: IP Shift Detected', { email: emailLower, oldIp: student.lastIp, newIp: clientIp, timeDiffMinutes });
-        // DEACTIVATED: Too many false positives on 5G/Cloudflare
-        // await flagAccount(emailLower, `ANOMALY: Impossible Travel. IP changed from ${student.lastIp} to ${clientIp} in ${Math.round(timeDiffMinutes)}m`);
       }
     }
     
