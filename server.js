@@ -112,6 +112,7 @@ async function sendEmail(to, subject, html) {
 
   // Use Brevo HTTP API for maximum reliability on Render
   try {
+    console.log(`[DEBUG] Attempting Brevo send with Key: ${BREVO_API_KEY_2.slice(0, 4)}...${BREVO_API_KEY_2.slice(-4)}`);
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': BREVO_API_KEY_2, 'Content-Type': 'application/json' },
