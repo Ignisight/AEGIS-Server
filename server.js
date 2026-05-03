@@ -103,43 +103,31 @@ const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Attendance System';
 
 // Send security/auth email via Gmail SMTP (Password Recovery & OTP Only)
 async function sendEmail(to, subject, html) {
-  const EMAIL_USER = process.env.EMAIL_USER;
-  const EMAIL_PASS = process.env.EMAIL_PASS;
+  const BREVO_API_KEY_2 = process.env.BREVO_API_KEY_2;
   
-  if (!EMAIL_USER || !EMAIL_PASS) {
-    console.log('  ⚠️  Email credentials (SMTP) not configured. OTP aborted.');
-    return { success: false, error: 'OTP service not configured.' };
+  if (!BREVO_API_KEY_2) {
+    console.log('  ⚠️  BREVO_API_KEY_2 not configured. OTP aborted.');
+    return { success: false, error: 'OTP service not configured on server.' };
   }
 
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL
-    family: 4,    // Force IPv4
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
-
+  // Use Brevo HTTP API for maximum reliability on Render
   try {
-    await transporter.sendMail({
-      from: `"${EMAIL_FROM_NAME}" <${EMAIL_USER}>`,
-      to,
-      subject,
-      html
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': BREVO_API_KEY_2, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html
+      }),
     });
-    return { success: true };
+    const data = await res.json();
+    if (res.ok) return { success: true };
+    return { success: false, error: data.message || 'Brevo error' };
   } catch (err) {
-    console.error('[GMAIL] FULL ERROR:', {
-      message: err.message,
-      code: err.code,
-      command: err.command,
-      address: err.address,
-      port: err.port,
-      stack: err.stack
-    });
-    return { success: false, error: `SMTP Error (${err.code || 'TIMEOUT'}): ${err.message}` };
+    console.error('[BREVO_2] Error:', err.message);
+    return { success: false, error: err.message };
   }
 }
 
@@ -802,7 +790,7 @@ app.post('/api/update-profile', async (req, res) => {
 
 // ---- SECURE OTP PASSWORD RESET ----
 
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', verifyAppSecret, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.json({ success: false, error: 'Email is required' });
 
@@ -843,7 +831,7 @@ app.post('/api/forgot-password', async (req, res) => {
   res.json({ success: true, message: `OTP sent to ${emailLower}` });
 });
 
-app.post('/api/reset-password', async (req, res) => {
+app.post('/api/reset-password', verifyAppSecret, async (req, res) => {
   const { email, otp, newPassword } = req.body;
   if (!email || !otp || !newPassword)
     return res.json({ success: false, error: 'Email, OTP and new password are required' });
