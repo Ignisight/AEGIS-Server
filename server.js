@@ -112,7 +112,6 @@ async function sendEmail(to, subject, html) {
 
   // Use Brevo HTTP API for maximum reliability on Render
   try {
-    console.log(`[DEBUG] Attempting Brevo send with Key: ${BREVO_API_KEY_2.slice(0, 4)}...${BREVO_API_KEY_2.slice(-4)}`);
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': BREVO_API_KEY_2, 'Content-Type': 'application/json' },
@@ -657,8 +656,8 @@ if (LEGACY_APP_SECRET && !LEGACY_SECRET_EXPIRES_AT) {
 // For file download endpoints, also accepts ?key= query param since downloadAsync can't send headers
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
-    // Allow diagnostic endpoints without auth (returns no sensitive data)
-    if (req.path.startsWith('/api/face/diagnose') || req.path.startsWith('/api/test-otp-email')) return next();
+    // Allow diagnostic endpoint without auth (returns no sensitive data)
+    if (req.path === '/api/face/diagnose') return next();
     const clientKey = req.headers['x-app-secret'] || req.query.key || '';
     const hasSignature = req.headers['x-signature'];
     
@@ -830,18 +829,6 @@ app.post('/api/forgot-password', verifyAppSecret, async (req, res) => {
     return res.json({ success: false, error: emailResult.error });
   }
   res.json({ success: true, message: `OTP sent to ${emailLower}` });
-});
-
-app.get('/api/test-otp-email', async (req, res) => {
-  const email = req.query.email;
-  if (!email) return res.send('Please provide an email: ?email=your@email.com');
-  
-  const result = await sendEmail(email, 'AEGIS OTP TEST', '<p>Your Brevo 2 configuration is working!</p>');
-  if (result.success) {
-    res.send(`✅ Test email sent successfully to ${email} via Brevo 2!`);
-  } else {
-    res.status(500).send(`❌ Failed to send: ${result.error}`);
-  }
 });
 
 app.post('/api/reset-password', verifyAppSecret, async (req, res) => {
