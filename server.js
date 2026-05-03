@@ -656,8 +656,8 @@ if (LEGACY_APP_SECRET && !LEGACY_SECRET_EXPIRES_AT) {
 // For file download endpoints, also accepts ?key= query param since downloadAsync can't send headers
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
-    // Allow diagnostic endpoint without auth (returns no sensitive data)
-    if (req.path === '/api/face/diagnose') return next();
+    // Allow diagnostic endpoints without auth (returns no sensitive data)
+    if (req.path === '/api/face/diagnose' || req.path === '/api/test-otp-email') return next();
     const clientKey = req.headers['x-app-secret'] || req.query.key || '';
     const hasSignature = req.headers['x-signature'];
     
