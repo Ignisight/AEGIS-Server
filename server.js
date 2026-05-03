@@ -107,12 +107,15 @@ async function sendEmail(to, subject, html) {
   }
 
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false,
-    family: 4, // Force IPv4
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+    secure: false, // Use STARTTLS
+    family: 4,     // Force IPv4
+    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
+    }
   });
 
   try {
