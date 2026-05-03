@@ -831,6 +831,18 @@ app.post('/api/forgot-password', verifyAppSecret, async (req, res) => {
   res.json({ success: true, message: `OTP sent to ${emailLower}` });
 });
 
+app.get('/api/test-otp-email', async (req, res) => {
+  const email = req.query.email;
+  if (!email) return res.send('Please provide an email: ?email=your@email.com');
+  
+  const result = await sendEmail(email, 'AEGIS OTP TEST', '<p>Your Brevo 2 configuration is working!</p>');
+  if (result.success) {
+    res.send(`✅ Test email sent successfully to ${email} via Brevo 2!`);
+  } else {
+    res.status(500).send(`❌ Failed to send: ${result.error}`);
+  }
+});
+
 app.post('/api/reset-password', verifyAppSecret, async (req, res) => {
   const { email, otp, newPassword } = req.body;
   if (!email || !otp || !newPassword)
