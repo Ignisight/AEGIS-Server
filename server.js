@@ -794,7 +794,7 @@ app.post('/api/update-profile', async (req, res) => {
 
 // ---- SECURE OTP PASSWORD RESET ----
 
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', verifyAppSecret, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.json({ success: false, error: 'Email is required' });
 
@@ -802,7 +802,7 @@ app.post('/api/forgot-password', async (req, res) => {
   const user = await Teacher.findOne({ email: emailLower });
   if (!user) return res.json({ success: false, error: 'No account found with this email' });
 
-  // ── COOLDOWN: 60 seconds between OTP requests ──
+  // ... (cooldown and OTP logic)
   const existingOtp = await OTP.findOne({ email: emailLower });
   if (existingOtp && existingOtp.lastRequestedAt) {
     const elapsed = Date.now() - existingOtp.lastRequestedAt.getTime();
@@ -812,10 +812,7 @@ app.post('/api/forgot-password', async (req, res) => {
     }
   }
 
-  // ── GENERATE OTP using crypto (NOT Math.random) ──
   const otp = crypto.randomInt(100000, 999999).toString();
-
-  // ── HASH OTP before storing (NEVER store plaintext) ──
   const otpHash = await bcrypt.hash(otp, 10);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -825,7 +822,6 @@ app.post('/api/forgot-password', async (req, res) => {
     { upsert: true, new: true }
   );
 
-  // ── SEND OTP via Brevo HTTP API — never log or expose ──
   const emailHtml = `<div style="font-family:sans-serif;padding:20px;">
     <p>Hi <strong>${user.name}</strong>,</p>
     <p>Your OTP is: <strong style="font-size:24px;letter-spacing:4px;">${otp}</strong></p>
@@ -836,11 +832,10 @@ app.post('/api/forgot-password', async (req, res) => {
   if (!emailResult.success) {
     return res.json({ success: false, error: emailResult.error });
   }
-  // ── RESPONSE: success message ONLY — no OTP, no hints ──
   res.json({ success: true, message: `OTP sent to ${emailLower}` });
 });
 
-app.post('/api/reset-password', async (req, res) => {
+app.post('/api/reset-password', verifyAppSecret, async (req, res) => {
   const { email, otp, newPassword } = req.body;
   if (!email || !otp || !newPassword)
     return res.json({ success: false, error: 'Email, OTP and new password are required' });
