@@ -131,8 +131,15 @@ async function sendEmail(to, subject, html) {
     });
     return { success: true };
   } catch (err) {
-    console.error('[GMAIL] Error:', err.message);
-    return { success: false, error: err.message };
+    console.error('[GMAIL] FULL ERROR:', {
+      message: err.message,
+      code: err.code,
+      command: err.command,
+      address: err.address,
+      port: err.port,
+      stack: err.stack
+    });
+    return { success: false, error: `SMTP Error (${err.code || 'TIMEOUT'}): ${err.message}` };
   }
 }
 
