@@ -1,4 +1,9 @@
 require('dotenv').config();
+const dns = require('dns');
+// Force IPv4 globally for all network requests (Fixes GMAIL ENETUNREACH on IPv6)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 // =============================================
 // Attendance System — MongoDB Atlas Edition
