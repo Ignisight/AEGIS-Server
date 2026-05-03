@@ -657,7 +657,7 @@ if (LEGACY_APP_SECRET && !LEGACY_SECRET_EXPIRES_AT) {
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
     // Allow diagnostic endpoints without auth (returns no sensitive data)
-    if (req.path === '/api/face/diagnose' || req.path === '/api/test-otp-email') return next();
+    if (req.path.startsWith('/api/face/diagnose') || req.path.startsWith('/api/test-otp-email')) return next();
     const clientKey = req.headers['x-app-secret'] || req.query.key || '';
     const hasSignature = req.headers['x-signature'];
     
