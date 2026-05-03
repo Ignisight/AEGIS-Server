@@ -98,60 +98,53 @@ const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'Attendance System';
 
 // Send security/auth email via Gmail SMTP (Password Recovery & OTP Only)
 async function sendEmail(to, subject, html) {
-  const BREVO_API_KEY = process.env.BREVO_API_KEY;
   const EMAIL_USER = process.env.EMAIL_USER;
   const EMAIL_PASS = process.env.EMAIL_PASS;
-
-  // 1. Prefer Brevo (HTTP API is more reliable in production)
-  if (BREVO_API_KEY) {
-    try {
-      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
-          to: [{ email: to }],
-          subject,
-          htmlContent: html
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) return { success: true };
-      return { success: false, error: data.message || 'Brevo error' };
-    } catch (err) {
-      console.error('[BREVO] Error:', err.message);
-      // Fallback to Gmail if Brevo fails and Gmail is configured
-    }
+  
+  if (!EMAIL_USER || !EMAIL_PASS) {
+    console.log('  ⚠️  Email credentials (SMTP) not configured. OTP aborted.');
+    return { success: false, error: 'OTP service not configured.' };
   }
 
-  // 2. Fallback to Gmail
-  if (EMAIL_USER && EMAIL_PASS) {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+  });
+
+  try {
+    await transporter.sendMail({
+      from: `"${EMAIL_FROM_NAME}" <${EMAIL_USER}>`,
+      to,
+      subject,
+      html
     });
-
-    try {
-      await transporter.sendMail({
-        from: `"${EMAIL_FROM_NAME}" <${EMAIL_USER}>`,
-        to,
-        subject,
-        html
-      });
-      return { success: true };
-    } catch (err) {
-      console.error('[GMAIL] Error:', err.message);
-      return { success: false, error: err.message };
-    }
+    return { success: true };
+  } catch (err) {
+    console.error('[GMAIL] Error:', err.message);
+    return { success: false, error: err.message };
   }
-
-  console.log('  ⚠️  No email provider configured.');
-  return { success: false, error: 'Email provider not configured on server.' };
 }
 
-// Student notifications (now just an alias to the unified sendEmail)
+// Student notifications via Brevo HTTP API
 async function sendStudentEmail(to, subject, html) {
-  return await sendEmail(to, subject, html);
+  const BREVO_API_KEY = process.env.BREVO_API_KEY;
+  if (!BREVO_API_KEY) {
+    console.log('  ⚠️  BREVO_API_KEY not configured.');
+    return { success: false, error: 'Email service not configured.' };
+  }
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
+    });
+    return res.ok ? { success: true } : { success: false };
+  } catch (err) { return { success: false, error: err.message }; }
 }
 
 function generateSessionCode() {
