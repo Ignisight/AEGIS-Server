@@ -480,18 +480,7 @@ function isValidGPS(lat, lon) {
   return !isNaN(latNum) && !isNaN(lonNum) && latNum >= -90 && latNum <= 90 && lonNum >= -180 && lonNum <= 180;
 }
 
-// [SECURITY] Request Integrity Validation (Issue #8)
-// Verifies request integrity and prevents replay attacks using a cryptographically signed payload
-function isValidSignature(payload, signature, timestamp) {
-  if (!signature || !timestamp) return false;
-  // Check if request is too old (replay protection window: 60s)
-  if (Math.abs(Date.now() - Number(timestamp)) > 60000) return false;
 
-  const hash = crypto.createHash('sha256');
-  hash.update(payload + timestamp + process.env.APP_SECRET_KEY);
-  const expected = hash.digest('hex');
-  return signature === expected;
-}
 
 // [PERFORMANCE] Attendance Batch Buffer (Issue #9)
 // Offloads high-frequency database writes to a background job to handle scan bursts smoothly
@@ -1412,11 +1401,7 @@ app.post('/api/student/submit', verifyAppSecret, async (req, res) => {
   if (!email || !deviceId || !sessionCode)
     return res.json({ success: false, error: 'Missing required fields' });
 
-  // [SECURITY] HMAC Signature & Replay Protection (Issue #8)
-  const payload = email.toLowerCase().trim() + deviceId + sessionCode;
-  if (!isValidSignature(payload, signature, timestamp)) {
-    return res.status(403).json({ success: false, error: 'Access Denied: Untrusted request signature or expired timestamp.' });
-  }
+
 
   // FIX: Validate email format and GPS coordinate ranges (Issue #5)
   if (!isValidEmail(email))
